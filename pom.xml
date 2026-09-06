@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <!--
+    Spring Boot 4.1.1 is the latest STABLE release (4.2.0-M1 is a milestone).
+
+    Why this matters: as of Spring gRPC 1.1, the gRPC starters moved OUT of
+    org.springframework.grpc and INTO Spring Boot itself. Most blog posts and
+    most generated code still show net.devh:grpc-server-spring-boot-starter,
+    which is a different, third-party project. See learning-records/0002.
+  -->
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>4.1.1</version>
+    <relativePath />
+  </parent>
+
+  <groupId>com.example</groupId>
+  <artifactId>grpc-scaling-workshop</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <name>gRPC Scaling Workshop</name>
+
+  <modules>
+    <!--
+      Laid out by DOMAIN, the way the Cognixus monorepo is: each domain owns an
+      api/ directory holding its schema and a service/ directory holding the
+      application. Protos are addressed from the repo root, so an import reads
+      shortener/api/v1/shortener_api.proto no matter who is importing it.
+    -->
+    <module>shortener/api</module>
+    <module>shortener/service</module>
+    <module>linkaudit/api</module>
+    <module>linkaudit/service</module>
+  </modules>
+
+  <properties>
+    <java.version>21</java.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+    <!--
+      These three are NOT arbitrary. They are read out of the dependency BOMs
+      so that generated code and runtime library agree:
+
+        grpc-java 1.83.1   <- grpc-java.version in spring-boot-dependencies:4.1.1
+        protobuf   4.35.1  <- protobuf-java.version in spring-grpc-dependencies:1.1.1
+
+      If you bump Spring Boot, re-read those two BOMs rather than guessing.
+    -->
+    <grpc.version>1.83.1</grpc.version>
+    <protobuf.version>4.35.1</protobuf.version>
+    <protobuf-maven-plugin.version>5.1.8</protobuf-maven-plugin.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.example</groupId>
+        <artifactId>shortener-api</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.example</groupId>
+        <artifactId>link-audit-api</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
+</project>

@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package linkaudit.api;
+
+// This import is the whole point of the project's contract story.
+//
+// link-audit does not define its own copy of LinkStatus. It imports the one and
+// only definition from the shortener schema, which arrives here as an ordinary
+// Maven dependency (com.example:shortener-api). protoc resolves the import out
+// of that jar.
+//
+// Note the direction: this SCHEMA depends on shortener's schema, while at
+// RUNTIME the call goes the other way -- shortener-service is the client that
+// calls link-audit-service. Those two arrows point in opposite directions, and
+// that is correct: a schema dependency is about shared vocabulary, a runtime
+// dependency is about who calls whom.
+import "shortener/api/shortener_api.proto";
+
+option java_multiple_files = true;
+option java_package = "com.example.linkaudit.api";
+option java_outer_classname = "LinkAuditProto";
+
+message ReportLinkCreatedRequest {
+  shortener.api.ShortLink link = 1;
+}
+
+message ReportLinkCreatedResponse {
+  // The verdict, expressed in the SHARED enum. If the two services disagreed
+  // about what "3" means, this would be silently misread -- exactly the class
+  // of bug a single definition eliminates.
+  shortener.api.LinkStatus resulting_status = 1;
+  string reason = 2;
+}
+
+service LinkAuditService {
+  rpc ReportLinkCreated(ReportLinkCreatedRequest) returns (ReportLinkCreatedResponse);
+}

@@ -1,0 +1,8 @@
+target/
+*.iml
+.idea/
+.vscode/
+.DS_Store
+
+# The Maven wrapper IS committed on purpose: it is what lets this repo build
+# without a global Maven install. Do not ignore .mvn/ or mvnw.

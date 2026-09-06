@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.example</groupId>
+    <artifactId>grpc-scaling-workshop</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>link-audit-api</artifactId>
+  <name>link-audit-api</name>
+
+  <properties>
+    <!--
+      The monorepo root. Every .proto is addressed relative to THIS directory,
+      which is what makes `import "shortener/api/v1/shortener_api.proto"` work
+      from anywhere in the tree. Same semantics Bazel gives Cognixus for free.
+    -->
+    <proto.root>${project.basedir}/../..</proto.root>
+  </properties>
+
+  <dependencies>
+    <!-- Needed for javac: this schema references shortener's generated types. -->
+    <dependency>
+      <groupId>com.example</groupId>
+      <artifactId>shortener-api</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-protobuf</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-stub</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>jakarta.annotation</groupId>
+      <artifactId>jakarta.annotation-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.tomcat</groupId>
+      <artifactId>annotations-api</artifactId>
+      <version>6.0.53</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>io.github.ascopes</groupId>
+        <artifactId>protobuf-maven-plugin</artifactId>
+        <version>${protobuf-maven-plugin.version}</version>
+        <configuration>
+          <protoc kind="binary-maven">
+            <version>${protobuf.version}</version>
+          </protoc>
+          <plugins>
+            <plugin kind="binary-maven">
+              <groupId>io.grpc</groupId>
+              <artifactId>protoc-gen-grpc-java</artifactId>
+              <version>${grpc.version}</version>
+            </plugin>
+          </plugins>
+          <!-- COMPILE only this domain's protos. -->
+          <sourceDirectories>
+            <sourceDirectory>${project.basedir}</sourceDirectory>
+          </sourceDirectories>
+          <!--
+            The plugin copies .proto sources into target/classes so they ship
+            inside the jar (embedSourcesInClassOutputs, on by default). Since the
+            source directory above is the module root, a rebuild would then find
+            that copy and try to compile the same file twice. Skip the build
+            output.
+          -->
+          <excludes>
+            <exclude>target/**</exclude>
+          </excludes>
+          <!-- RESOLVE imports against the repo root, without compiling them. -->
+          <importPaths>
+            <importPath>${proto.root}</importPath>
+          </importPaths>
+          <!--
+            Do NOT also scan dependency jars for .proto files. Without this the
+            plugin finds shortener_api.proto twice - once on the filesystem via
+            the import path above, once unpacked from the shortener-api jar -
+            and aborts on the duplicate.
+
+            The filesystem root is the single source of truth, exactly as it is
+            in a Bazel monorepo. The Maven dependency still matters, but only so
+            javac can see the generated classes.
+          -->
+          <ignoreProjectDependencies>true</ignoreProjectDependencies>
+        </configuration>
+        <executions>
+          <execution>
+            <goals><goal>generate</goal></goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
