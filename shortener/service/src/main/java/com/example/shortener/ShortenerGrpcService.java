@@ -14,6 +14,7 @@ import com.example.shortener.api.ShortLink;
 import com.example.shortener.api.ShortenerServiceGrpc;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import java.net.URI;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
@@ -52,17 +53,21 @@ public class ShortenerGrpcService extends ShortenerServiceGrpc.ShortenerServiceI
   public void createShortLink(
       CreateShortLinkRequest request, StreamObserver<CreateShortLinkResponse> responseObserver) {
 
-    if (request.getLongUrl().isBlank()) {
+    if (!validateCreateShortLinkRequest(request)) {
       // Deliberately NOT Status.INVALID_ARGUMENT here -- see the Error/oneof
       // comment in shortener_api.proto. The RPC itself succeeded; the business
       // rule said no. So this is onNext() + onCompleted(), a normal successful
       // call, with the caller expected to check getResponseCase().
+      log.info("what= the heck");
       responseObserver.onNext(
           CreateShortLinkResponse.newBuilder()
               .setError(
                   Error.newBuilder()
                       .setCode(ShortenerError.SHORTENER_ERROR_INVALID_ARGUMENT_VALUE)
-                      .setMessage("long_url must not be empty")
+                      .setMessage(
+                          "long_url must be an absolute URL, e.g. https://example.com (got: "
+                              + request.getLongUrl()
+                              + ")")
                       .build())
               .build());
       responseObserver.onCompleted();
@@ -80,25 +85,44 @@ public class ShortenerGrpcService extends ShortenerServiceGrpc.ShortenerServiceI
     // SAME
     // generated enum both services compiled against. Neither side owns a private
     // copy.
-    LinkStatus verdict = link.getStatus();
     try {
       ReportLinkCreatedResponse audit = auditStub.reportLinkCreated(
           ReportLinkCreatedRequest.newBuilder().setLink(link).build());
-      verdict = audit.getResultingStatus();
-      if (verdict == LinkStatus.LINK_STATUS_FLAGGED) {
+      LinkStatus validUrl = audit.getResultingStatus();
+      if (validUrl == LinkStatus.LINK_STATUS_FLAGGED) {
         log.warn("link {} flagged by audit: {}", link.getShortCode(), audit.getReason());
+        responseObserver.onNext(
+            CreateShortLinkResponse.newBuilder()
+                .setError(
+                    Error.newBuilder()
+                        .setCode(ShortenerError.SHORTENER_ERROR_URL_FLAGGED_VALUE)
+                        .setMessage("Shortener URL has been flagged")
+                        .build())
+                .build());
+        responseObserver.onCompleted();
+        return;
       }
     } catch (RuntimeException e) {
-      // Audit is advisory. A shortener that cannot create links because the auditor
-      // is
-      // down has coupled its availability to a non-critical dependency.
-      log.warn("audit unavailable, defaulting to {}: {}", verdict, e.toString());
+      // Fails CLOSED: if audit can't be reached at all, the link is rejected
+      // rather than created. Different from the FLAGGED branch above -- audit
+      // never ran here, it didn't say no -- so this gets its own error code,
+      // not the flagged one.
+      log.warn("failed to verify url {}: {}", link.getLongUrl(), e.toString());
+      responseObserver.onNext(
+          CreateShortLinkResponse.newBuilder()
+              .setError(
+                  Error.newBuilder()
+                      .setCode(ShortenerError.SHORTENER_ERROR_AUDIT_UNAVAILABLE_VALUE)
+                      .setMessage(e.toString())
+                      .build())
+              .build());
+      responseObserver.onCompleted();
+      return;
     }
 
-    ShortLink stored = link.toBuilder().setStatus(verdict).build();
-    store.put(stored.getShortCode(), stored);
+    store.put(link.getShortCode(), link);
 
-    responseObserver.onNext(CreateShortLinkResponse.newBuilder().setLink(stored).build());
+    responseObserver.onNext(CreateShortLinkResponse.newBuilder().setLink(link).build());
     responseObserver.onCompleted();
   }
 
@@ -118,5 +142,28 @@ public class ShortenerGrpcService extends ShortenerServiceGrpc.ShortenerServiceI
 
     responseObserver.onNext(ResolveShortLinkResponse.newBuilder().setLink(link).build());
     responseObserver.onCompleted();
+  }
+
+  /**
+   * True only for a URL with a scheme (https://, http://, ...).
+   * {@code URI.create("malware.test")}
+   * parses without error but has no scheme and no host -- it's a relative
+   * reference, not an
+   * absolute URL, and nothing downstream can redirect to it.
+   */
+  private static boolean isAbsoluteUrl(String url) {
+    try {
+      return URI.create(url).isAbsolute();
+    } catch (IllegalArgumentException e) {
+      // Not even a syntactically valid URI at all (e.g. contains a raw space).
+      return false;
+    }
+  }
+
+  private boolean validateCreateShortLinkRequest(CreateShortLinkRequest request) {
+    if (request == null || request.getLongUrl().isBlank()) {
+      return false;
+    }
+    return isAbsoluteUrl(request.getLongUrl());
   }
 }

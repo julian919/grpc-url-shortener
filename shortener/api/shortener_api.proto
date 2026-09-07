@@ -71,8 +71,10 @@ message Error {
 }
 
 enum ShortenerError {
-  SHORTENER_ERROR_UNSPECIFIED      = 0;
-  SHORTENER_ERROR_INVALID_ARGUMENT = 1;
+  SHORTENER_ERROR_UNSPECIFIED       = 0;
+  SHORTENER_ERROR_INVALID_ARGUMENT  = 1;
+  SHORTENER_ERROR_URL_FLAGGED       = 2; // audit ran, and said no
+  SHORTENER_ERROR_AUDIT_UNAVAILABLE = 3; // audit COULDN'T run -- a different failure entirely
 }
 
 // Request and response are always their own message type, even when they wrap
