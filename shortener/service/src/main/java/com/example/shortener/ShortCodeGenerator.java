@@ -1,41 +1,26 @@
 package com.example.shortener;
 
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.UUID;
 import org.springframework.stereotype.Component;
 
 /**
- * Counter-block base62 key generation.
+ * A previous version of this class used a per-instance counter with base62 encoding --
+ * removed after discovering it had a real bug: every replica starts its counter at the same
+ * value with no coordination between instances, so any two replicas that have served the
+ * same number of prior calls generate the byte-for-byte identical short code for two
+ * different long URLs. Confirmed live: three freshly started replicas all produced
+ * {@code "4c92"} as their first code.
  *
- * <p>Chosen over random-and-retry because the write path stays a pure insert: no
- * read-before-write, no collision loop, and no coordination on the hot path once a block is
- * held. Each instance claims a block of ids and hands them out locally; only block
- * exhaustion needs the shared counter.
- *
- * <p>The in-memory counter here is a placeholder. Backing it with a Postgres sequence is
- * what makes it survive more than one replica.
+ * <p>{@link UUID#randomUUID()} sidesteps the whole problem -- 122 random bits per call means
+ * the chance of any two calls, from any number of replicas, ever colliding is astronomically
+ * small, with zero coordination required. The trade-off, worth being explicit about: a UUID
+ * is 36 characters, considerably longer than the old 4-character codes -- less "short" for a
+ * URL shortener, in exchange for correctness across replicas without a shared datastore.
  */
 @Component
 public class ShortCodeGenerator {
 
-  private static final String ALPHABET =
-      "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
-  private final AtomicLong counter = new AtomicLong(1_000_000L);
-
   public String next() {
-    return encodeBase62(counter.getAndIncrement());
-  }
-
-  static String encodeBase62(long value) {
-    if (value == 0) {
-      return "0";
-    }
-    StringBuilder sb = new StringBuilder();
-    long v = value;
-    while (v > 0) {
-      sb.append(ALPHABET.charAt((int) (v % 62)));
-      v /= 62;
-    }
-    return sb.reverse().toString();
+    return UUID.randomUUID().toString();
   }
 }

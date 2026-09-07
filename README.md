@@ -274,6 +274,54 @@ which requires a file's path to match its package. The layout already satisfies 
 pass clean on day one. That constraint is *why* the `v1` directory segment exists; it is
 good practice regardless, just not currently enforced by anything.
 
+## 5b. Running scaled — client-side round-robin, no proxy
+
+```bash
+docker compose up -d --build --scale shortener-service=3
+```
+
+No Envoy, no proxy, no extra container. A caller resolves the Compose service name directly
+via Docker's embedded DNS and load-balances client-side —
+[Lesson 6](../lessons/0006-why-your-load-balancer-lies-to-you.html)'s Option B.
+
+**An Envoy-based version (Option A) was built and verified working first** — see Lesson 6
+for the full story of why it was removed. Short version: asked to explain `envoy.yaml`
+cold, the honest answer was "not yet" — and a piece of the project that can't be defended
+under a follow-up question isn't worth keeping, however impressive. The simpler version
+below is what's actually in this repo now.
+
+Because Docker Compose's embedded DNS namespace only exists *inside* its own network, your
+host machine can't resolve `shortener-service` directly — run load-test tools as containers
+on the same network instead:
+
+```bash
+docker run --rm --network code_default ghcr.io/bojand/ghz:latest \
+  --insecure \
+  --call shortener.api.ShortenerService.CreateShortLink \
+  -d '{"long_url":"https://anthropic.com"}' \
+  --lb-strategy round_robin \
+  -c 20 -n 2000 \
+  dns:///shortener-service:9090
+```
+
+```bash
+docker compose down   # tear it all down
+```
+
+## 5c. ghz results (Lesson 7) -- the honest ones, not the expected ones
+
+Full investigation and interpretation: [lessons/0007-proving-it-with-ghz.html](../lessons/0007-proving-it-with-ghz.html).
+Short version: scaling 1->3 replicas did NOT improve CreateShortLink throughput
+(1702 -> 1508 req/s, p99 roughly 2.4x worse) -- and this is the SECOND time this exact
+pattern showed up, first with an Envoy proxy in the path, now with none at all. Testing
+both rules the proxy out as the cause: every replica, link-audit-service, and the ghz
+client itself share one laptop's finite CPU cores regardless of architecture -- more
+containers isn't more hardware. Separately, ResolveShortLink for one just-created code
+came back roughly 2-in-3 OK through the 3-replica pool (not the naive 1-in-3 a single
+independent store predicts, worth digging into further) -- proof reads aren't reliably
+consistent under scaling yet, since each replica holds independent in-memory state. That's
+the real argument for Postgres next, not just durability.
+
 ## 6. Status
 
 | Piece | State |
@@ -282,10 +330,12 @@ good practice regardless, just not currently enforced by anything.
 | Both services, cross-service call | ✅ **verified end-to-end**, in-memory store |
 | Pre-commit `buf` guard | ⬜ deferred, see §5 |
 | Wire-compatibility tests | ✅ 4/4 passing, no tooling needed |
+| Unit tests (ShortenerGrpcService, ShortCodeGenerator) | ✅ 23/23 passing — see Lesson 7b |
 | Postgres + Redis cache-aside | ⬜ later lesson |
-| Docker Compose, N replicas | ⬜ later lesson |
-| L4-vs-L7 load balancing demo | ⬜ later lesson |
-| ghz benchmark numbers | ⬜ later lesson |
+| Docker Compose, N replicas | ✅ built and verified 2026-09-07 |
+| Client-side round-robin (Option B) | ✅ proven live — see §5b |
+| Envoy (Option A) | built, verified, then deliberately removed — see Lesson 6 |
+| ghz benchmark numbers | ✅ done — see §5c |
 
 ### Verified 2026-09-06
 

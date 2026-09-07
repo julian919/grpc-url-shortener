@@ -1,0 +1,19 @@
+services:
+
+  linkaudit-service:
+    build:
+      context: .
+      dockerfile: linkaudit/service/Dockerfile
+    expose:
+      - "9091"
+
+  shortener-service:
+    build:
+      context: .
+      dockerfile: shortener/service/Dockerfile
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    expose:
+      - "9090"
+    depends_on:
+      - linkaudit-service

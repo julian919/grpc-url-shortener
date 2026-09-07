@@ -149,8 +149,11 @@ public class ShortenerGrpcService extends ShortenerServiceGrpc.ShortenerServiceI
    * parses without error but has no scheme and no host -- it's a relative
    * reference, not an
    * absolute URL, and nothing downstream can redirect to it.
+   *
+   * <p>Package-private rather than private specifically so the test in this package can
+   * exercise it directly -- see lessons/0007b-writing-unit-tests.html.
    */
-  private static boolean isAbsoluteUrl(String url) {
+  static boolean isAbsoluteUrl(String url) {
     try {
       return URI.create(url).isAbsolute();
     } catch (IllegalArgumentException e) {

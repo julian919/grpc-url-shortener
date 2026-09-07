@@ -1,0 +1,13 @@
+# Activated in containers via SPRING_PROFILES_ACTIVE=docker (see docker-compose.yml).
+#
+# The base application.yml points at localhost:9091, which is correct for two
+# processes on one machine but meaningless inside a container -- "localhost"
+# there means "this container", not "the link-audit container". This profile
+# overrides just that one property with the Docker Compose service name,
+# resolved via Compose's own embedded DNS.
+spring:
+  grpc:
+    client:
+      channel:
+        link-audit:
+          target: "static://linkaudit-service:9091"
