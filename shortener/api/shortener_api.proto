@@ -33,10 +33,6 @@ enum LinkStatus {
   LINK_STATUS_ACTIVE      = 1;
   LINK_STATUS_EXPIRED     = 2;
   LINK_STATUS_FLAGGED     = 3;
-
-  // Lesson 5 adds LINK_STATUS_PENDING_REVIEW = 4 here, regenerates both
-  // services, and demonstrates what happens to a consumer still running the
-  // old generated class. Do not add it yet.
 }
 
 message ShortLink {

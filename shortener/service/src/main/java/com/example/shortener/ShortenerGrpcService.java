@@ -58,7 +58,6 @@ public class ShortenerGrpcService extends ShortenerServiceGrpc.ShortenerServiceI
       // comment in shortener_api.proto. The RPC itself succeeded; the business
       // rule said no. So this is onNext() + onCompleted(), a normal successful
       // call, with the caller expected to check getResponseCase().
-      log.info("what= the heck");
       responseObserver.onNext(
           CreateShortLinkResponse.newBuilder()
               .setError(
@@ -161,7 +160,7 @@ public class ShortenerGrpcService extends ShortenerServiceGrpc.ShortenerServiceI
   }
 
   private boolean validateCreateShortLinkRequest(CreateShortLinkRequest request) {
-    if (request == null || request.getLongUrl().isBlank()) {
+    if (request.getLongUrl().isBlank()) {
       return false;
     }
     return isAbsoluteUrl(request.getLongUrl());
