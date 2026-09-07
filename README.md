@@ -162,6 +162,40 @@ import com.example.shortener.api.v1.LinkStatus;                // someone else's
 
 ---
 
+## 3b. Two kinds of failure, two different mechanisms
+
+`CreateShortLink` and `ResolveShortLink` fail in genuinely different ways, and the code
+treats them differently on purpose — mirroring a real pattern from Cognixus's
+`error/api/error_api.proto`.
+
+**`ResolveShortLink` uses a real gRPC status** (`NOT_FOUND`). "This resource doesn't exist"
+is a transport-level outcome — exactly what gRPC's status codes exist for. It ends the call:
+`onError(...)`, no response message.
+
+**`CreateShortLink` uses a `oneof` in the response body** for a blank `long_url`:
+
+```proto
+message CreateShortLinkResponse {
+  oneof response {
+    ShortLink link  = 1;
+    Error     error = 2;
+  }
+}
+```
+
+This is a *business* failure, not a transport one — the RPC succeeded, the server understood
+the request fine, a validation rule said no. That doesn't belong in a Status trailer (which
+is exactly the layer Postman rendered so unhelpfully — see Lesson 4). It belongs in the
+response, as ordinary structured data: `onNext(...)` with the `error` branch set, then
+`onCompleted()`. The call **succeeded**; the caller checks `getResponseCase()`.
+
+**The distinction worth getting right**: a link flagged by link-audit (`status =
+LINK_STATUS_FLAGGED`) is *not* routed through `Error`. Being flagged is a legitimate
+business **state** of a successfully created link — it still comes back on the `link`
+branch. `Error` is reserved for "this operation could not be carried out at all," not for
+"the operation succeeded with a state you should pay attention to." Conflating the two would
+make every flagged link indistinguishable from a rejected one.
+
 ## 4. Version matrix (read the BOMs, not the blog posts)
 
 Every version below was read out of a published POM, not guessed. This matters more than

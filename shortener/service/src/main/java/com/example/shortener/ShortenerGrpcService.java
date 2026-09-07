@@ -5,7 +5,9 @@ import com.example.linkaudit.api.ReportLinkCreatedRequest;
 import com.example.linkaudit.api.ReportLinkCreatedResponse;
 import com.example.shortener.api.CreateShortLinkRequest;
 import com.example.shortener.api.CreateShortLinkResponse;
+import com.example.shortener.api.Error;
 import com.example.shortener.api.LinkStatus;
+import com.example.shortener.api.ShortenerError;
 import com.example.shortener.api.ResolveShortLinkRequest;
 import com.example.shortener.api.ResolveShortLinkResponse;
 import com.example.shortener.api.ShortLink;
@@ -19,12 +21,17 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * The generated {@code ShortenerServiceImplBase} is an abstract class with one method per rpc
- * in the .proto. Extending it is what makes this class a gRPC service; annotating it
+ * The generated {@code ShortenerServiceImplBase} is an abstract class with one
+ * method per rpc
+ * in the .proto. Extending it is what makes this class a gRPC service;
+ * annotating it
  * {@code @Service} is what makes Spring hand it to the gRPC server at startup.
  *
- * <p>Storage is an in-memory map for now. Postgres + Redis cache-aside arrive in a later
- * lesson; nothing above this line changes when they do, which is itself the point.
+ * <p>
+ * Storage is an in-memory map for now. Postgres + Redis cache-aside arrive in a
+ * later
+ * lesson; nothing above this line changes when they do, which is itself the
+ * point.
  */
 @Service
 public class ShortenerGrpcService extends ShortenerServiceGrpc.ShortenerServiceImplBase {
@@ -46,33 +53,44 @@ public class ShortenerGrpcService extends ShortenerServiceGrpc.ShortenerServiceI
       CreateShortLinkRequest request, StreamObserver<CreateShortLinkResponse> responseObserver) {
 
     if (request.getLongUrl().isBlank()) {
-      // gRPC's error model is a status code, not an HTTP code and not an exception type.
-      responseObserver.onError(
-          Status.INVALID_ARGUMENT.withDescription("long_url must not be empty").asRuntimeException());
+      // Deliberately NOT Status.INVALID_ARGUMENT here -- see the Error/oneof
+      // comment in shortener_api.proto. The RPC itself succeeded; the business
+      // rule said no. So this is onNext() + onCompleted(), a normal successful
+      // call, with the caller expected to check getResponseCase().
+      responseObserver.onNext(
+          CreateShortLinkResponse.newBuilder()
+              .setError(
+                  Error.newBuilder()
+                      .setCode(ShortenerError.SHORTENER_ERROR_INVALID_ARGUMENT_VALUE)
+                      .setMessage("long_url must not be empty")
+                      .build())
+              .build());
+      responseObserver.onCompleted();
       return;
     }
 
-    ShortLink link =
-        ShortLink.newBuilder()
-            .setShortCode(codes.next())
-            .setLongUrl(request.getLongUrl())
-            .setCreatedAt(System.currentTimeMillis())
-            .setStatus(LinkStatus.LINK_STATUS_ACTIVE)
-            .build();
+    ShortLink link = ShortLink.newBuilder()
+        .setShortCode(codes.next())
+        .setLongUrl(request.getLongUrl())
+        .setCreatedAt(System.currentTimeMillis())
+        .setStatus(LinkStatus.LINK_STATUS_ACTIVE)
+        .build();
 
-    // Cross-service call. Note that the verdict comes back as a LinkStatus -- the SAME
-    // generated enum both services compiled against. Neither side owns a private copy.
+    // Cross-service call. Note that the verdict comes back as a LinkStatus -- the
+    // SAME
+    // generated enum both services compiled against. Neither side owns a private
+    // copy.
     LinkStatus verdict = link.getStatus();
     try {
-      ReportLinkCreatedResponse audit =
-          auditStub.reportLinkCreated(
-              ReportLinkCreatedRequest.newBuilder().setLink(link).build());
+      ReportLinkCreatedResponse audit = auditStub.reportLinkCreated(
+          ReportLinkCreatedRequest.newBuilder().setLink(link).build());
       verdict = audit.getResultingStatus();
       if (verdict == LinkStatus.LINK_STATUS_FLAGGED) {
         log.warn("link {} flagged by audit: {}", link.getShortCode(), audit.getReason());
       }
     } catch (RuntimeException e) {
-      // Audit is advisory. A shortener that cannot create links because the auditor is
+      // Audit is advisory. A shortener that cannot create links because the auditor
+      // is
       // down has coupled its availability to a non-critical dependency.
       log.warn("audit unavailable, defaulting to {}: {}", verdict, e.toString());
     }
