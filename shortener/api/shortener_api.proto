@@ -47,47 +47,20 @@ message ShortLink {
   LinkStatus status     = 4;
 }
 
-// ---------------------------------------------------------------------------
-// Rich business errors, mirroring the pattern in Cognixus's error/api/error_api.proto.
-//
-// This is deliberately NOT used everywhere. gRPC's own Status codes (see
-// ResolveShortLink's NOT_FOUND below) already handle transport-level outcomes
-// well -- "this resource doesn't exist" is exactly what NOT_FOUND is for, and
-// wrapping it in a custom Error would be less idiomatic, not more.
-//
-// This exists for the other kind of failure: the RPC succeeded, the server
-// understood the request fine, but a BUSINESS rule said no. That's not a
-// protocol failure, so it doesn't belong in a Status trailer most clients
-// (see: Postman) render poorly -- it belongs in the response body as
-// ordinary structured data, which every client already knows how to read.
-// ---------------------------------------------------------------------------
-message Error {
-  int32  code    = 1;
-  string message = 2;
-}
-
-enum ShortenerError {
-  SHORTENER_ERROR_UNSPECIFIED       = 0;
-  SHORTENER_ERROR_INVALID_ARGUMENT  = 1;
-  SHORTENER_ERROR_URL_FLAGGED       = 2; // audit ran, and said no
-  SHORTENER_ERROR_AUDIT_UNAVAILABLE = 3; // audit COULDN'T run -- a different failure entirely
-}
-
 // Request and response are always their own message type, even when they wrap
 // a single string. A bare scalar has nowhere to grow.
 message CreateShortLinkRequest {
   string long_url = 1;
 }
 
+// Previously a `oneof { ShortLink link; Error error; }`, treating a rejected
+// URL as a normal successful response. Reverted: gRPC's own Status codes are
+// the more standard place for this (INVALID_ARGUMENT, FAILED_PRECONDITION),
+// same convention as ResolveShortLink's NOT_FOUND below -- see
+// lessons/0004-rpc-kinds-deadlines-status-codes.html for why this changed
+// after it was already built and working.
 message CreateShortLinkResponse {
-  // A discriminated union, same shape as Cognixus's CreateOrderResponse: the
-  // caller gets EITHER a link OR an error, enforced by the compiler, not by
-  // convention. Generated code makes it structurally awkward to read `link`
-  // without first checking getResponseCase().
-  oneof response {
-    ShortLink link  = 1;
-    Error     error = 2;
-  }
+  ShortLink link = 1;
 }
 
 message ResolveShortLinkRequest {

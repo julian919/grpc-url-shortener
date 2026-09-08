@@ -5,9 +5,7 @@ import com.example.linkaudit.api.ReportLinkCreatedRequest;
 import com.example.linkaudit.api.ReportLinkCreatedResponse;
 import com.example.shortener.api.CreateShortLinkRequest;
 import com.example.shortener.api.CreateShortLinkResponse;
-import com.example.shortener.api.Error;
 import com.example.shortener.api.LinkStatus;
-import com.example.shortener.api.ShortenerError;
 import com.example.shortener.api.ResolveShortLinkRequest;
 import com.example.shortener.api.ResolveShortLinkResponse;
 import com.example.shortener.api.ShortLink;
@@ -54,23 +52,13 @@ public class ShortenerGrpcService extends ShortenerServiceGrpc.ShortenerServiceI
       CreateShortLinkRequest request, StreamObserver<CreateShortLinkResponse> responseObserver) {
 
     if (!validateCreateShortLinkRequest(request)) {
-      // Deliberately NOT Status.INVALID_ARGUMENT here -- see the Error/oneof
-      // comment in shortener_api.proto. The RPC itself succeeded; the business
-      // rule said no. So this is onNext() + onCompleted(), a normal successful
-      // call, with the caller expected to check getResponseCase().
-      responseObserver.onNext(
-          CreateShortLinkResponse.newBuilder()
-              .setError(
-                  Error.newBuilder()
-                      .setCode(ShortenerError.SHORTENER_ERROR_INVALID_ARGUMENT_VALUE)
-                      .setMessage(
-                          "long_url must be an absolute URL, e.g. https://example.com (got: "
-                              + request.getLongUrl()
-                              + ")")
-                      .build())
-              .build());
-      responseObserver.onCompleted();
-      return;
+      // Thrown, not returned -- ShortenerExceptionAdvice maps this to
+      // Status.INVALID_ARGUMENT globally. Nothing here builds a Status or touches
+      // responseObserver on the failure path; that's the advice's job.
+      throw new InvalidArgumentException(
+          "long_url must be an absolute URL, e.g. https://example.com (got: "
+              + request.getLongUrl()
+              + ")");
     }
 
     ShortLink link = ShortLink.newBuilder()
@@ -81,42 +69,25 @@ public class ShortenerGrpcService extends ShortenerServiceGrpc.ShortenerServiceI
         .build();
 
     // Cross-service call. Note that the verdict comes back as a LinkStatus -- the
-    // SAME
-    // generated enum both services compiled against. Neither side owns a private
-    // copy.
+    // SAME generated enum both services compiled against. Neither side owns a
+    // private copy.
+    ReportLinkCreatedResponse audit;
     try {
-      ReportLinkCreatedResponse audit = auditStub.reportLinkCreated(
+      audit = auditStub.reportLinkCreated(
           ReportLinkCreatedRequest.newBuilder().setLink(link).build());
-      LinkStatus validUrl = audit.getResultingStatus();
-      if (validUrl == LinkStatus.LINK_STATUS_FLAGGED) {
-        log.warn("link {} flagged by audit: {}", link.getShortCode(), audit.getReason());
-        responseObserver.onNext(
-            CreateShortLinkResponse.newBuilder()
-                .setError(
-                    Error.newBuilder()
-                        .setCode(ShortenerError.SHORTENER_ERROR_URL_FLAGGED_VALUE)
-                        .setMessage("Shortener URL has been flagged")
-                        .build())
-                .build());
-        responseObserver.onCompleted();
-        return;
-      }
     } catch (RuntimeException e) {
       // Fails CLOSED: if audit can't be reached at all, the link is rejected
-      // rather than created. Different from the FLAGGED branch above -- audit
-      // never ran here, it didn't say no -- so this gets its own error code,
-      // not the flagged one.
-      log.warn("failed to verify url {}: {}", link.getLongUrl(), e.toString());
-      responseObserver.onNext(
-          CreateShortLinkResponse.newBuilder()
-              .setError(
-                  Error.newBuilder()
-                      .setCode(ShortenerError.SHORTENER_ERROR_AUDIT_UNAVAILABLE_VALUE)
-                      .setMessage(e.toString())
-                      .build())
-              .build());
-      responseObserver.onCompleted();
-      return;
+      // rather than created. Wrapped (rather than left as whatever the stub
+      // threw) so this service's error vocabulary doesn't leak link-audit's.
+      throw new AuditUnavailableException("failed to verify url " + link.getLongUrl(), e);
+    }
+
+    if (audit.getResultingStatus() == LinkStatus.LINK_STATUS_FLAGGED) {
+      // Different from AuditUnavailableException above -- audit DID run here,
+      // and said no, rather than never answering. Distinct exception, distinct
+      // Status code (FAILED_PRECONDITION, not UNAVAILABLE).
+      log.warn("link {} flagged by audit: {}", link.getShortCode(), audit.getReason());
+      throw new UrlFlaggedException("Shortener URL has been flagged: " + audit.getReason());
     }
 
     store.put(link.getShortCode(), link);
@@ -132,11 +103,9 @@ public class ShortenerGrpcService extends ShortenerServiceGrpc.ShortenerServiceI
     ShortLink link = store.get(request.getShortCode());
 
     if (link == null) {
-      responseObserver.onError(
-          Status.NOT_FOUND
-              .withDescription("no such short code: " + request.getShortCode())
-              .asRuntimeException());
-      return;
+      throw Status.NOT_FOUND
+          .withDescription("no such short code: " + request.getShortCode())
+          .asRuntimeException();
     }
 
     responseObserver.onNext(ResolveShortLinkResponse.newBuilder().setLink(link).build());

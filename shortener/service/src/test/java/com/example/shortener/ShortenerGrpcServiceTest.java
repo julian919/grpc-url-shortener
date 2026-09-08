@@ -1,8 +1,10 @@
 package com.example.shortener;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.example.linkaudit.api.LinkAuditServiceGrpc;
@@ -13,42 +15,32 @@ import com.example.shortener.api.CreateShortLinkResponse;
 import com.example.shortener.api.LinkStatus;
 import com.example.shortener.api.ResolveShortLinkRequest;
 import com.example.shortener.api.ResolveShortLinkResponse;
-import com.example.shortener.api.ShortenerError;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * Levels 2 and 3, in one class.
  *
- * <p>
- * Level 2 (below): isAbsoluteUrl is a pure function, tested the same way as
- * Level 1 --
- * no mocks needed, just many inputs run through one {@code @ParameterizedTest}
- * instead of
- * one method per case.
+ * <p>Level 2 (below): isAbsoluteUrl is a pure function, tested the same way as Level 1 -- no
+ * mocks needed, just many inputs run through one {@code @ParameterizedTest} instead of one
+ * method per case.
  *
- * <p>
- * Level 3 (further below): createShortLink and resolveShortLink are NOT pure --
- * they
- * call another service (link-audit, over the network) and report their result
- * through a
- * StreamObserver instead of a return value. A unit test still isolates THIS
- * class alone:
- * the audit stub is mocked so no real network call happens, and the
- * StreamObserver is
- * mocked so the response can be captured and inspected instead of actually
- * being sent
- * anywhere.
+ * <p>Level 3 (further below): createShortLink and resolveShortLink are NOT pure -- they call
+ * another service (link-audit, over the network) and, on the happy path, report their result
+ * through a StreamObserver. On a failure path they instead THROW -- {@code ShortenerExceptionAdvice}
+ * is what turns that into a Status the client sees in the real, running app, but a unit test at
+ * this layer only needs to prove the right exception type comes out; see
+ * {@code GrpcExceptionHandlingTest} for proof of the translation step itself.
  */
 @ExtendWith(MockitoExtension.class)
 class ShortenerGrpcServiceTest {
@@ -64,16 +56,13 @@ class ShortenerGrpcServiceTest {
 
   @BeforeEach
   void setUp() {
-    // The real ShortCodeGenerator, not a mock -- it's a pure, trivial dependency
-    // (Level 1
-    // already tested it directly), so there's nothing to gain from mocking it here.
-    // Mock
+    // The real ShortCodeGenerator, not a mock -- it's a pure, trivial dependency (Level 1
+    // already tested it directly), so there's nothing to gain from mocking it here. Mock
     // only the dependency that does real I/O: the network call to link-audit.
     service = new ShortenerGrpcService(new ShortCodeGenerator(), auditStub);
   }
 
-  // --- Level 2: pure function, many cases, no mocks
-  // ---------------------------------
+  // --- Level 2: pure function, many cases, no mocks ---------------------------------
 
   @ParameterizedTest
   @ValueSource(strings = { "https://example.com", "http://example.com", "ftp://example.com" })
@@ -91,31 +80,22 @@ class ShortenerGrpcServiceTest {
     assertThat(ShortenerGrpcService.isAbsoluteUrl(url)).isFalse();
   }
 
-  // --- Level 3: mock the network dependency, capture the response
-  // --------------------
+  // --- Level 3: mock the network dependency, assert on the thrown exception --------
 
   @Test
-  void createShortLink_blankUrl_respondsWithInvalidArgumentError() {
+  void createShortLink_blankUrl_throwsInvalidArgument() {
     CreateShortLinkRequest request = CreateShortLinkRequest.newBuilder().setLongUrl("").build();
 
-    service.createShortLink(request, createObserver);
+    assertThatThrownBy(() -> service.createShortLink(request, createObserver))
+        .isInstanceOf(InvalidArgumentException.class);
 
-    CreateShortLinkResponse response = captureResponse();
-    assertThat(response.getResponseCase()).isEqualTo(CreateShortLinkResponse.ResponseCase.ERROR);
-    assertThat(response.getError().getCode())
-        .isEqualTo(ShortenerError.SHORTENER_ERROR_INVALID_ARGUMENT_VALUE);
-    // The audit dependency should never even be called for input this obviously
-    // invalid --
-    // this is a genuinely useful thing a unit test can check that reading the code
-    // cannot
-    // confirm at a glance: verify(auditStub, never())... would go here, and is
-    // worth adding
-    // if you want to lock in "invalid requests short-circuit before any network
-    // call".
+    // Invalid requests short-circuit before any network call -- worth locking in
+    // explicitly, since reading the code alone doesn't confirm it at a glance.
+    verifyNoInteractions(auditStub);
   }
 
   @Test
-  void createShortLink_auditFlagsTheUrl_respondsWithFlaggedError() {
+  void createShortLink_auditFlagsTheUrl_throwsUrlFlagged() {
     CreateShortLinkRequest request = CreateShortLinkRequest.newBuilder().setLongUrl("https://malware.test").build();
 
     when(auditStub.reportLinkCreated(any()))
@@ -125,27 +105,22 @@ class ShortenerGrpcServiceTest {
                 .setReason("host is on the blocklist: malware.test")
                 .build());
 
-    service.createShortLink(request, createObserver);
-
-    CreateShortLinkResponse response = captureResponse();
-    assertThat(response.getResponseCase()).isEqualTo(CreateShortLinkResponse.ResponseCase.ERROR);
-    assertThat(response.getError().getCode())
-        .isEqualTo(ShortenerError.SHORTENER_ERROR_URL_FLAGGED_VALUE);
+    assertThatThrownBy(() -> service.createShortLink(request, createObserver))
+        .isInstanceOf(UrlFlaggedException.class);
   }
 
   @Test
-  void createShortLink_auditUnreachable_respondsWithAuditUnavailableError() {
+  void createShortLink_auditUnreachable_throwsAuditUnavailable() {
     CreateShortLinkRequest request = CreateShortLinkRequest.newBuilder().setLongUrl("https://anthropic.com").build();
 
     when(auditStub.reportLinkCreated(any()))
         .thenThrow(Status.UNAVAILABLE.asRuntimeException());
 
-    service.createShortLink(request, createObserver);
-
-    CreateShortLinkResponse response = captureResponse();
-    assertThat(response.getResponseCase()).isEqualTo(CreateShortLinkResponse.ResponseCase.ERROR);
-    assertThat(response.getError().getCode())
-        .isEqualTo(ShortenerError.SHORTENER_ERROR_AUDIT_UNAVAILABLE_VALUE);
+    // Wrapped, not left as the raw StatusRuntimeException the stub threw -- this
+    // service's error vocabulary shouldn't leak link-audit's.
+    assertThatThrownBy(() -> service.createShortLink(request, createObserver))
+        .isInstanceOf(AuditUnavailableException.class)
+        .hasCauseInstanceOf(StatusRuntimeException.class);
   }
 
   @Test
@@ -161,25 +136,21 @@ class ShortenerGrpcServiceTest {
     service.createShortLink(request, createObserver);
 
     CreateShortLinkResponse response = captureResponse();
-    assertThat(response.getResponseCase()).isEqualTo(CreateShortLinkResponse.ResponseCase.LINK);
     assertThat(response.getLink().getLongUrl()).isEqualTo("https://anthropic.com");
     assertThat(response.getLink().getStatus()).isEqualTo(LinkStatus.LINK_STATUS_ACTIVE);
 
     // Confirms auditStub was actually called, with the link this createShortLink
-    // built --
-    // not just that SOME response came back. Mocking without verifying the
-    // interaction is
-    // an easy way to write a test that would pass even if the audit call were
-    // deleted.
+    // built -- not just that SOME response came back. Mocking without verifying
+    // the interaction is an easy way to write a test that would pass even if the
+    // audit call were deleted.
     verify(auditStub).reportLinkCreated(any(ReportLinkCreatedRequest.class));
   }
 
   @Test
   void resolveShortLink_afterCreate_returnsTheSameLink() {
     // No mocking of ShortenerGrpcService's own state here -- store is real,
-    // in-memory,
-    // exactly as it runs in production. Only the network dependency (audit) is
-    // mocked.
+    // in-memory, exactly as it runs in production. Only the network dependency
+    // (audit) is mocked.
     when(auditStub.reportLinkCreated(any()))
         .thenReturn(
             ReportLinkCreatedResponse.newBuilder()
@@ -199,15 +170,14 @@ class ShortenerGrpcServiceTest {
   }
 
   @Test
-  void resolveShortLink_unknownCode_reportsNotFoundStatus() {
-    service.resolveShortLink(
-        ResolveShortLinkRequest.newBuilder().setShortCode("nope").build(), resolveObserver);
+  void resolveShortLink_unknownCode_throwsNotFoundStatus() {
+    ResolveShortLinkRequest request = ResolveShortLinkRequest.newBuilder().setShortCode("nope").build();
 
-    ArgumentCaptor<Throwable> captor = ArgumentCaptor.forClass(Throwable.class);
-    verify(resolveObserver).onError(captor.capture());
-    assertThat(captor.getValue()).isInstanceOf(StatusRuntimeException.class);
-    assertThat(Status.fromThrowable(captor.getValue()).getCode())
-        .isEqualTo(Status.Code.NOT_FOUND);
+    assertThatThrownBy(() -> service.resolveShortLink(request, resolveObserver))
+        .isInstanceOf(StatusRuntimeException.class)
+        .satisfies(e -> assertThat(Status.fromThrowable(e).getCode()).isEqualTo(Status.Code.NOT_FOUND));
+
+    verifyNoInteractions(resolveObserver);
   }
 
   private CreateShortLinkResponse captureResponse() {

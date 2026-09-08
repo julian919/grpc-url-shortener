@@ -4,8 +4,8 @@ services:
     build:
       context: .
       dockerfile: linkaudit/service/Dockerfile
-    expose:
-      - "9091"
+    ports:
+      - "9091:9091"
 
   shortener-service:
     build:
@@ -13,7 +13,7 @@ services:
       dockerfile: shortener/service/Dockerfile
     environment:
       SPRING_PROFILES_ACTIVE: docker
-    expose:
-      - "9090"
+    ports:
+      - "9090:9090"
     depends_on:
       - linkaudit-service
