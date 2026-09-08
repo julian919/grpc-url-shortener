@@ -1,4 +1,4 @@
-package com.example.shortener;
+package com.example.shortener.exception;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowableOfType;

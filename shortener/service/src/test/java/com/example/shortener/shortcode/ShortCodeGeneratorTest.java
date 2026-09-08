@@ -1,4 +1,4 @@
-package com.example.shortener;
+package com.example.shortener.shortcode;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -21,6 +21,18 @@ class ShortCodeGeneratorTest {
     String code = generator.next();
 
     assertThat(code).isNotBlank();
+  }
+
+  @Test
+  void nextReturnsA22CharacterUrlSafeCode() {
+    // 128 bits at 6 bits/char (Base64url) is 22 characters unpadded -- a specific,
+    // checkable number, not just "some string".
+    ShortCodeGenerator generator = new ShortCodeGenerator();
+
+    String code = generator.next();
+
+    assertThat(code).hasSize(22);
+    assertThat(code).matches("[A-Za-z0-9_-]+"); // URL-safe alphabet; no '+', '/', or '=' padding
   }
 
   @Test

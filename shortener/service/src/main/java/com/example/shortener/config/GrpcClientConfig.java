@@ -1,4 +1,4 @@
-package com.example.shortener;
+package com.example.shortener.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

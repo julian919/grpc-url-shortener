@@ -1,4 +1,4 @@
-package com.example.shortener;
+package com.example.shortener.exception;
 
 import io.grpc.Status;
 import org.springframework.grpc.server.advice.GrpcAdvice;

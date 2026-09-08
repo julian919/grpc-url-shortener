@@ -1,4 +1,4 @@
-package com.example.shortener;
+package com.example.shortener.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -15,6 +15,11 @@ import com.example.shortener.api.CreateShortLinkResponse;
 import com.example.shortener.api.LinkStatus;
 import com.example.shortener.api.ResolveShortLinkRequest;
 import com.example.shortener.api.ResolveShortLinkResponse;
+import com.example.shortener.exception.AuditUnavailableException;
+import com.example.shortener.exception.InvalidArgumentException;
+import com.example.shortener.exception.UrlFlaggedException;
+import com.example.shortener.link.InMemoryLinkStore;
+import com.example.shortener.shortcode.ShortCodeGenerator;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.stub.StreamObserver;
@@ -31,7 +36,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 /**
  * Levels 2 and 3, in one class.
  *
- * <p>Level 2 (below): isAbsoluteUrl is a pure function, tested the same way as Level 1 -- no
+ * <p>Level 2 (below): isShortenableUrl is a pure function, tested the same way as Level 1 -- no
  * mocks needed, just many inputs run through one {@code @ParameterizedTest} instead of one
  * method per case.
  *
@@ -56,28 +61,32 @@ class ShortenerGrpcServiceTest {
 
   @BeforeEach
   void setUp() {
-    // The real ShortCodeGenerator, not a mock -- it's a pure, trivial dependency (Level 1
-    // already tested it directly), so there's nothing to gain from mocking it here. Mock
-    // only the dependency that does real I/O: the network call to link-audit.
-    service = new ShortenerGrpcService(new ShortCodeGenerator(), auditStub);
+    // The real InMemoryLinkStore and ShortCodeGenerator, not mocks -- both are simple,
+    // already-tested-in-isolation collaborators (Level 1), so there's nothing to gain from
+    // mocking them here. Mock only the dependency that does real I/O: the network call to
+    // link-audit.
+    service = new ShortenerGrpcService(new InMemoryLinkStore(), new ShortCodeGenerator(), auditStub);
   }
 
   // --- Level 2: pure function, many cases, no mocks ---------------------------------
 
   @ParameterizedTest
-  @ValueSource(strings = { "https://example.com", "http://example.com", "ftp://example.com" })
-  void isAbsoluteUrl_trueForAnyScheme(String url) {
-    assertThat(ShortenerGrpcService.isAbsoluteUrl(url)).isTrue();
+  @ValueSource(strings = { "https://example.com", "http://example.com" })
+  void isShortenableUrl_trueForHttpAndHttps(String url) {
+    assertThat(ShortenerGrpcService.isShortenableUrl(url)).isTrue();
   }
 
   @ParameterizedTest
   @CsvSource({
-      "malware.test", // no scheme -- the exact bug this method exists to catch
+      "malware.test", // no scheme at all -- the original malware.test bug
       "''", // blank
-      "not a url at all" // not even syntactically valid (raw space)
+      "not a url at all", // not even syntactically valid (raw space)
+      "ftp://example.com", // absolute, has a scheme, but not one we shorten
+      "javascript:alert(1)", // absolute, has a scheme, definitely not one we shorten
+      "https://", // http(s) scheme, but no host at all
   })
-  void isAbsoluteUrl_falseWithoutAScheme(String url) {
-    assertThat(ShortenerGrpcService.isAbsoluteUrl(url)).isFalse();
+  void isShortenableUrl_falseForAnythingElse(String url) {
+    assertThat(ShortenerGrpcService.isShortenableUrl(url)).isFalse();
   }
 
   // --- Level 3: mock the network dependency, assert on the thrown exception --------
@@ -148,9 +157,8 @@ class ShortenerGrpcServiceTest {
 
   @Test
   void resolveShortLink_afterCreate_returnsTheSameLink() {
-    // No mocking of ShortenerGrpcService's own state here -- store is real,
-    // in-memory, exactly as it runs in production. Only the network dependency
-    // (audit) is mocked.
+    // No mocking of ShortenerGrpcService's own storage here -- InMemoryLinkStore is real,
+    // exactly as it runs in production. Only the network dependency (audit) is mocked.
     when(auditStub.reportLinkCreated(any()))
         .thenReturn(
             ReportLinkCreatedResponse.newBuilder()
