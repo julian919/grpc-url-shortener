@@ -11,23 +11,17 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>shortener-service</artifactId>
-  <name>shortener-service</name>
+  <artifactId>user-service</artifactId>
+  <name>user-service</name>
 
   <dependencies>
     <!-- Its own domain's schema. -->
     <dependency>
       <groupId>com.example</groupId>
-      <artifactId>shortener-api</artifactId>
+      <artifactId>user-api</artifactId>
     </dependency>
 
     <!-- The schema of a domain it CALLS at runtime. -->
-    <dependency>
-      <groupId>com.example</groupId>
-      <artifactId>link-audit-api</artifactId>
-    </dependency>
-
-    <!-- Needed for javac: ProtoPermissionAuthorizationManager reads AuthProto.requiresPermissions. -->
     <dependency>
       <groupId>com.example</groupId>
       <artifactId>auth-api</artifactId>
@@ -37,16 +31,9 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-grpc-client</artifactId>
     </dependency>
-
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-grpc-server</artifactId>
-    </dependency>
-    <!-- Provides the JwtDecoder machinery GrpcSecurityConfig's oauth2ResourceServer(jwt) uses
-         to validate the bearer token from auth-service against auth-public-key.pem. -->
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
@@ -55,11 +42,6 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-inprocess</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

@@ -1,0 +1,16 @@
+spring:
+  application:
+    name: user-service
+  grpc:
+    server:
+      port: 9093
+    client:
+      channel:
+        auth:
+          target: "static://localhost:9092"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

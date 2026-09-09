@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package auth.api;
+
+import "google/protobuf/descriptor.proto";
+
+option java_multiple_files = true;
+option java_package = "com.example.auth.api";
+option java_outer_classname = "AuthProto";
+
+// ---------------------------------------------------------------------------
+// A required permission, declared ON THE RPC ITSELF, not in a consuming
+// service's Java config. Modeled directly on a real pattern (Cognixus's
+// auth/api/auth_api.proto: RequiresPermissions + `extend MethodOptions`),
+// trimmed to just permissions -- no roles, no AND/OR logic operator, since
+// nothing here needs more than "the caller has this one permission".
+//
+// Field number 536870910 is in protobuf's reserved-for-internal-use custom
+// option range (500000000-536870911) -- the same range Cognixus's own
+// extension uses, chosen so it can never collide with a numbered field
+// anyone adds to a normal message.
+// ---------------------------------------------------------------------------
+message RequiresPermissions {
+  repeated string permissions = 1;
+}
+
+extend google.protobuf.MethodOptions {
+  RequiresPermissions requires_permissions = 536870910;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  string access_token = 1;
+  int64  expires_in_seconds = 2;
+}
+
+// Internal surface, called by user-service only when creating a new account.
+// No auth required on this call today -- same trust-the-network-boundary
+// posture shortener-service's call to link-audit-service already has.
+message CreatePrincipalRequest {
+  string email = 1;
+  string password = 2; // plaintext; auth-service hashes it, never stores it as-is
+}
+
+message CreatePrincipalResponse {
+  string principal_id = 1; // UUID, as a string
+}
+
+service AuthService {
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc CreatePrincipal(CreatePrincipalRequest) returns (CreatePrincipalResponse);
+}

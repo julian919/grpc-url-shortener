@@ -1,0 +1,8 @@
+# Activated via SPRING_PROFILES_ACTIVE=docker -- same pattern as shortener-service's
+# application-docker.yml, overriding just the target to Compose's service DNS name.
+spring:
+  grpc:
+    client:
+      channel:
+        auth:
+          target: "static://auth-service:9092"

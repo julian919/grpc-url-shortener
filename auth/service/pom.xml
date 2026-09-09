@@ -11,23 +11,11 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>shortener-service</artifactId>
-  <name>shortener-service</name>
+  <artifactId>auth-service</artifactId>
+  <name>auth-service</name>
 
   <dependencies>
     <!-- Its own domain's schema. -->
-    <dependency>
-      <groupId>com.example</groupId>
-      <artifactId>shortener-api</artifactId>
-    </dependency>
-
-    <!-- The schema of a domain it CALLS at runtime. -->
-    <dependency>
-      <groupId>com.example</groupId>
-      <artifactId>link-audit-api</artifactId>
-    </dependency>
-
-    <!-- Needed for javac: ProtoPermissionAuthorizationManager reads AuthProto.requiresPermissions. -->
     <dependency>
       <groupId>com.example</groupId>
       <artifactId>auth-api</artifactId>
@@ -35,15 +23,38 @@
 
     <dependency>
       <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-grpc-client</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-grpc-server</artifactId>
     </dependency>
-    <!-- Provides the JwtDecoder machinery GrpcSecurityConfig's oauth2ResourceServer(jwt) uses
-         to validate the bearer token from auth-service against auth-public-key.pem. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <!--
+      Spring Boot 4.x moved Flyway autoconfiguration behind its own dedicated starter,
+      same pattern as spring-boot-starter-grpc-server — plain flyway-core on the
+      classpath is no longer enough to trigger it (confirmed: without this, Hibernate's
+      schema validation runs before Flyway ever gets a chance to migrate anything).
+    -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-flyway</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-database-postgresql</artifactId>
+    </dependency>
+    <!--
+      Not used for its resource-server behavior here (auth-service has no
+      protected RPCs of its own) — pulled in for the NimbusJwtEncoder/RSAKey
+      machinery it brings transitively, to MINT tokens rather than validate
+      them. shortener-service is the one that actually validates, in its own
+      copy of this same starter.
+    -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
@@ -55,11 +66,6 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>io.grpc</groupId>
-      <artifactId>grpc-inprocess</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>

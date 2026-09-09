@@ -10,6 +10,11 @@ syntax = "proto3";
 // than editing this one in place.
 package shortener.api;
 
+// The required-permission option applied to CreateShortLink below, further
+// down this file, comes from here -- see auth/api/auth_api.proto for why it's
+// a MethodOptions extension rather than a Java-side config check.
+import "auth/api/auth_api.proto";
+
 option java_multiple_files = true;
 option java_package = "com.example.shortener.api";
 option java_outer_classname = "ShortenerProto";
@@ -72,10 +77,15 @@ message ResolveShortLinkResponse {
 }
 
 service ShortenerService {
-  // Write path. Low QPS.
-  rpc CreateShortLink(CreateShortLinkRequest) returns (CreateShortLinkResponse);
+  // Write path. Low QPS. Requires CREATE_SHORT_URL -- the requirement lives
+  // here, on the contract, not in shortener-service's own Java config. Any
+  // caller (or future language's client) can read this straight off the
+  // .proto, before ever touching shortener-service's source.
+  rpc CreateShortLink(CreateShortLinkRequest) returns (CreateShortLinkResponse) {
+    option (auth.api.requires_permissions).permissions = "CREATE_SHORT_URL";
+  }
 
   // Read path. This is the RPC that gets scaled to N replicas in lesson 6,
-  // and the one ghz hammers in lesson 7.
+  // and the one ghz hammers in lesson 7. No permission required -- public.
   rpc ResolveShortLink(ResolveShortLinkRequest) returns (ResolveShortLinkResponse);
 }

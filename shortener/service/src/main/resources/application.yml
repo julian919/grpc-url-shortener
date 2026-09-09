@@ -9,6 +9,19 @@ spring:
         # Key restructured in Spring gRPC 1.1: was spring.grpc.client.channels.<n>.address
         link-audit:
           target: "static://localhost:9091"
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # No JWKS-over-HTTP -- auth-service has no HTTP port at all in this design. The
+          # public key is a bundled copy of auth-service's own certs/public.pem.
+          public-key-location: classpath:auth-public-key.pem
+          # ShortenerExceptionAdvice's translation is exceptions -> Status. This is the
+          # equivalent for JWT claims -> Spring Security GrantedAuthority: read the
+          # "permissions" claim directly, no "SCOPE_" prefix, matching what
+          # ProtoPermissionAuthorizationManager compares against.
+          authorities-claim-name: permissions
+          authority-prefix: ""
 
 management:
   endpoints:

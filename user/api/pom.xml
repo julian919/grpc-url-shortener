@@ -11,26 +11,14 @@
     <relativePath>../../pom.xml</relativePath>
   </parent>
 
-  <artifactId>shortener-api</artifactId>
-  <name>shortener-api</name>
+  <artifactId>user-api</artifactId>
+  <name>user-api</name>
 
   <properties>
-    <!--
-      The monorepo root. Every .proto is addressed relative to THIS directory,
-      which is what makes `import "shortener/api/v1/shortener_api.proto"` work
-      from anywhere in the tree. Same semantics Bazel gives Cognixus for free.
-    -->
     <proto.root>${project.basedir}/../..</proto.root>
   </properties>
 
   <dependencies>
-
-    <!-- Needed for javac: this schema references auth.api's MethodOptions extension. -->
-    <dependency>
-      <groupId>com.example</groupId>
-      <artifactId>auth-api</artifactId>
-    </dependency>
-
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
@@ -76,34 +64,15 @@
               <version>${grpc.version}</version>
             </plugin>
           </plugins>
-          <!-- COMPILE only this domain's protos. -->
           <sourceDirectories>
             <sourceDirectory>${project.basedir}</sourceDirectory>
           </sourceDirectories>
-          <!--
-            The plugin copies .proto sources into target/classes so they ship
-            inside the jar (embedSourcesInClassOutputs, on by default). Since the
-            source directory above is the module root, a rebuild would then find
-            that copy and try to compile the same file twice. Skip the build
-            output.
-          -->
           <excludes>
             <exclude>target/**</exclude>
           </excludes>
-          <!-- RESOLVE imports against the repo root, without compiling them. -->
           <importPaths>
             <importPath>${proto.root}</importPath>
           </importPaths>
-          <!--
-            Do NOT also scan dependency jars for .proto files. Without this the
-            plugin finds shortener_api.proto twice - once on the filesystem via
-            the import path above, once unpacked from the shortener-api jar -
-            and aborts on the duplicate.
-
-            The filesystem root is the single source of truth, exactly as it is
-            in a Bazel monorepo. The Maven dependency still matters, but only so
-            javac can see the generated classes.
-          -->
           <ignoreProjectDependencies>true</ignoreProjectDependencies>
         </configuration>
         <executions>
