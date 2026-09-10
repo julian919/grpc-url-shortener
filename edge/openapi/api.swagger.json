@@ -1,0 +1,458 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "gRPC URL Shortener -- edge API",
+    "description": "HTTP/JSON surface of the shortener/auth/user services, transcoded by the edge Envoy. Generated from the .proto contract; do not edit by hand.",
+    "version": "0.1.0"
+  },
+  "tags": [
+    {
+      "name": "ShortenerService"
+    },
+    {
+      "name": "AuthService"
+    },
+    {
+      "name": "UserService"
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/api/links": {
+      "get": {
+        "operationId": "ShortenerService_RetrieveShortLinks",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/apiRetrieveShortLinksResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "tags": [
+          "ShortenerService"
+        ]
+      },
+      "post": {
+        "summary": "Write path. Low QPS. Requires CREATE_SHORT_URL -- the requirement lives\nhere, on the contract, not in shortener-service's own Java config. Any\ncaller (or future language's client) can read this straight off the\n.proto, before ever touching shortener-service's source.",
+        "operationId": "ShortenerService_CreateShortLink",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/apiCreateShortLinkResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "Request and response are always their own message type, even when they wrap\na single string. A bare scalar has nowhere to grow.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/apiCreateShortLinkRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ShortenerService"
+        ]
+      }
+    },
+    "/api/links/{shortCode}": {
+      "get": {
+        "summary": "Read path. This is the RPC that gets scaled to N replicas in lesson 6,\nand the one ghz hammers in lesson 7. No permission required -- public.",
+        "operationId": "ShortenerService_ResolveShortLink",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/apiResolveShortLinkResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "shortCode",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ShortenerService"
+        ]
+      }
+    },
+    "/api/login": {
+      "post": {
+        "operationId": "AuthService_Login",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/apiLoginResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/apiLoginRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      }
+    },
+    "/api/register": {
+      "post": {
+        "operationId": "UserService_Register",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/apiRegisterResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/apiRegisterRequest"
+            }
+          }
+        ],
+        "tags": [
+          "UserService"
+        ]
+      }
+    },
+    "/api/token/refresh": {
+      "post": {
+        "summary": "OAuth 2.1 refresh token rotation. The browser holds the refresh token and\ntrades it for a fresh access token here.",
+        "operationId": "AuthService_RenewToken",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/apiRenewTokenResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "Request to renew an access token using a long-lived refresh token.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/apiRenewTokenRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "apiCreatePrincipalResponse": {
+      "type": "object",
+      "properties": {
+        "principalId": {
+          "type": "string",
+          "title": "UUID, as a string"
+        }
+      }
+    },
+    "apiCreateShortLinkRequest": {
+      "type": "object",
+      "properties": {
+        "longUrl": {
+          "type": "string"
+        }
+      },
+      "description": "Request and response are always their own message type, even when they wrap\na single string. A bare scalar has nowhere to grow."
+    },
+    "apiCreateShortLinkResponse": {
+      "type": "object",
+      "properties": {
+        "link": {
+          "$ref": "#/definitions/apiShortLink"
+        }
+      },
+      "description": "Previously a `oneof { ShortLink link; Error error; }`, treating a rejected\nURL as a normal successful response. Reverted: gRPC's own Status codes are\nthe more standard place for this (INVALID_ARGUMENT, FAILED_PRECONDITION),\nsame convention as ResolveShortLink's NOT_FOUND below -- see\nlessons/0004-rpc-kinds-deadlines-status-codes.html for why this changed\nafter it was already built and working."
+    },
+    "apiLinkStatus": {
+      "type": "string",
+      "enum": [
+        "LINK_STATUS_UNSPECIFIED",
+        "LINK_STATUS_ACTIVE",
+        "LINK_STATUS_EXPIRED",
+        "LINK_STATUS_FLAGGED"
+      ],
+      "default": "LINK_STATUS_UNSPECIFIED",
+      "description": "---------------------------------------------------------------------------\nLinkStatus is THE shared type of this project.\n\nBoth shortener-service and link-audit-service are generated from this one\nenum. That is the entire point: in a previous project this enum was\nhand-copied into a second service and the two definitions drifted apart.\nHere, adding a value is a single edit to a single file.\n\nRules being obeyed (see lessons/0001):\n  - a zero value MUST exist, because proto3 cannot distinguish \"unset\"\n    from \"the first value\"\n  - the zero value means UNSPECIFIED, never a real state, so a field\n    nobody set fails closed instead of silently meaning ACTIVE\n---------------------------------------------------------------------------"
+    },
+    "apiLoginRequest": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        }
+      }
+    },
+    "apiLoginResponse": {
+      "type": "object",
+      "properties": {
+        "accessToken": {
+          "type": "string"
+        },
+        "expiresInSeconds": {
+          "type": "string",
+          "format": "int64"
+        },
+        "refreshToken": {
+          "type": "string"
+        }
+      }
+    },
+    "apiOAuth2Token": {
+      "type": "object",
+      "properties": {
+        "accessToken": {
+          "type": "string"
+        },
+        "tokenType": {
+          "type": "string",
+          "title": "\"bearer\""
+        },
+        "expiresInSeconds": {
+          "type": "string",
+          "format": "int64"
+        },
+        "refreshToken": {
+          "type": "string",
+          "title": "present for user refreshable sessions"
+        }
+      },
+      "title": "---------------------------------------------------------------------------\nStandard OAuth2 Token bundle, modeled after Cognixus OAuth2Token.\nReturned by GetClientToken and RenewToken.\n---------------------------------------------------------------------------"
+    },
+    "apiPageInfo": {
+      "type": "object",
+      "properties": {
+        "page": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "pageSize": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalCount": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "totalPages": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "apiRegisterRequest": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string"
+        },
+        "password": {
+          "type": "string"
+        }
+      }
+    },
+    "apiRegisterResponse": {
+      "type": "object",
+      "properties": {
+        "principalId": {
+          "type": "string"
+        }
+      }
+    },
+    "apiRenewTokenRequest": {
+      "type": "object",
+      "properties": {
+        "refreshToken": {
+          "type": "string"
+        }
+      },
+      "description": "Request to renew an access token using a long-lived refresh token."
+    },
+    "apiRenewTokenResponse": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "$ref": "#/definitions/apiOAuth2Token"
+        }
+      },
+      "description": "Response from RenewToken containing the new access token and rotated refresh token."
+    },
+    "apiResolveShortLinkResponse": {
+      "type": "object",
+      "properties": {
+        "link": {
+          "$ref": "#/definitions/apiShortLink"
+        }
+      }
+    },
+    "apiRetrieveShortLinksResponse": {
+      "type": "object",
+      "properties": {
+        "links": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/apiShortLink"
+          }
+        },
+        "pageInfo": {
+          "$ref": "#/definitions/apiPageInfo"
+        }
+      }
+    },
+    "apiShortLink": {
+      "type": "object",
+      "properties": {
+        "shortCode": {
+          "type": "string"
+        },
+        "longUrl": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "int64",
+          "title": "epoch millis"
+        },
+        "status": {
+          "$ref": "#/definitions/apiLinkStatus"
+        }
+      },
+      "title": "Nothing retired yet. When a field is deleted, its number and name are\n reserved HERE, in the same commit. See reference/proto-compatibility.html\n reserved 9 to 11;\n reserved \"click_count\";"
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    }
+  },
+  "host": "localhost:8080",
+  "schemes": [
+    "http"
+  ],
+  "securityDefinitions": {
+    "Bearer": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header"
+    }
+  },
+  "security": [
+    {
+      "Bearer": []
+    }
+  ]
+}

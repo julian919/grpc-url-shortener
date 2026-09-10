@@ -75,6 +75,10 @@
           <outputDescriptorFile>${project.build.directory}/protobuf/api-bundle.pb</outputDescriptorFile>
           <outputDescriptorIncludeImports>true</outputDescriptorIncludeImports>
           <outputDescriptorRetainOptions>true</outputDescriptorRetainOptions>
+          <!-- Carries the proto comments through to the descriptor, so the
+               OpenAPI doc generated from it (edge/openapi) picks them up as
+               endpoint descriptions. Envoy ignores this either way. -->
+          <outputDescriptorIncludeSourceInfo>true</outputDescriptorIncludeSourceInfo>
         </configuration>
         <executions>
           <execution>
