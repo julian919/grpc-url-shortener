@@ -1,0 +1,18 @@
+{
+  // Eclipse JDT's AutoBuildJob calls cleanOutputFolders() on target/classes.
+  // When `./mvnw` is writing there at the same time, the CLI build fails
+  // intermittently ("could not create parent directories", or ECJ writes
+  // half-compiled .class files carrying "Unresolved compilation problem").
+  // Measured ~3 failures in 6 clean runs before this was set; 0 after.
+  //
+  // Editor IntelliSense (hover, completion, go-to-definition, on-file error
+  // squiggles) does NOT need autobuild and keeps working. After `./mvnw clean`
+  // you must run a Maven build once before generated protobuf types resolve.
+  "java.autobuild.enabled": false,
+
+  // Stop the file watcher waking the language server for every .class file
+  // Maven writes. Defense in depth for the same race.
+  "files.watcherExclude": {
+    "**/target/**": true
+  }
+}

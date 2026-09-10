@@ -1,7 +1,12 @@
 target/
 *.iml
 .idea/
-.vscode/
+# Ignore .vscode/ contents EXCEPT settings.json, which is a required build
+# workaround (see the comment inside it), not a personal preference. Git can
+# only re-include a file if the parent dir itself is not excluded, hence
+# ".vscode/*" rather than ".vscode/".
+.vscode/*
+!.vscode/settings.json
 .DS_Store
 
 # The Maven wrapper IS committed on purpose: it is what lets this repo build
