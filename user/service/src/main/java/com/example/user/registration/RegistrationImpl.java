@@ -5,14 +5,15 @@ import com.example.auth.api.CreatePrincipalRequest;
 import com.example.auth.api.CreatePrincipalResponse;
 import com.example.user.exception.RegistrationFailedException;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 @Component
-class GrpcPrincipalDirectory implements PrincipalDirectory {
+class RegistrationImpl implements RegistrationInterface {
 
   private final AuthServiceGrpc.AuthServiceBlockingStub authStub;
 
-  GrpcPrincipalDirectory(AuthServiceGrpc.AuthServiceBlockingStub authStub) {
+  RegistrationImpl(@Qualifier("authenticated") AuthServiceGrpc.AuthServiceBlockingStub authStub) {
     this.authStub = authStub;
   }
 
@@ -20,9 +21,8 @@ class GrpcPrincipalDirectory implements PrincipalDirectory {
   public UUID createPrincipal(String email, String password) {
     CreatePrincipalResponse response;
     try {
-      response =
-          authStub.createPrincipal(
-              CreatePrincipalRequest.newBuilder().setEmail(email).setPassword(password).build());
+      response = authStub.createPrincipal(
+          CreatePrincipalRequest.newBuilder().setEmail(email).setPassword(password).build());
     } catch (RuntimeException e) {
       throw new RegistrationFailedException("failed to create principal for " + email, e);
     }

@@ -79,9 +79,11 @@
             <importPath>${proto.root}</importPath>
           </importPaths>
           <ignoreProjectDependencies>true</ignoreProjectDependencies>
+          <embedSourcesInClassOutputs>false</embedSourcesInClassOutputs>
         </configuration>
         <executions>
           <execution>
+            <id>generate</id>
             <goals><goal>generate</goal></goals>
           </execution>
         </executions>

@@ -1,4 +1,4 @@
-package com.example.auth.entity;
+package com.example.auth.user;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -14,12 +14,15 @@ import jakarta.persistence.UniqueConstraint;
 import java.util.UUID;
 
 /**
- * One identifier pointing at a {@link Principal} -- separated out so a second login method
- * (Google, mobile, ...) slots in as another row, not a schema change to Principal itself.
+ * One identifier pointing at a {@link PrincipalEntity} -- separated out so a
+ * second
+ * login method
+ * (Google, mobile, ...) slots in as another row, not a schema change to
+ * Principal itself.
  */
 @Entity
 @Table(name = "logins", uniqueConstraints = @UniqueConstraint(columnNames = { "provider", "account_id" }))
-public class Login {
+public class LoginEntity {
 
   @Id
   @GeneratedValue(strategy = GenerationType.UUID)
@@ -27,18 +30,18 @@ public class Login {
 
   @ManyToOne(optional = false, fetch = FetchType.LAZY)
   @JoinColumn(name = "principal_id", nullable = false)
-  private Principal principal;
+  private PrincipalEntity principal;
 
   @Enumerated(EnumType.STRING)
-  private AuthProvider provider;
+  private AuthProviderEnum provider;
 
   private String accountId;
 
-  protected Login() {
+  protected LoginEntity() {
     // JPA
   }
 
-  public Login(Principal principal, AuthProvider provider, String accountId) {
+  public LoginEntity(PrincipalEntity principal, AuthProviderEnum provider, String accountId) {
     this.principal = principal;
     this.provider = provider;
     this.accountId = accountId;
@@ -48,11 +51,11 @@ public class Login {
     return id;
   }
 
-  public Principal getPrincipal() {
+  public PrincipalEntity getPrincipal() {
     return principal;
   }
 
-  public AuthProvider getProvider() {
+  public AuthProviderEnum getProvider() {
     return provider;
   }
 

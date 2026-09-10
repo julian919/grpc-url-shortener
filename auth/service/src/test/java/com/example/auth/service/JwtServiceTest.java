@@ -4,9 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
-import com.example.auth.entity.Principal;
-import com.example.auth.entity.Role;
 import com.example.auth.repository.RoleRepository;
+import com.example.auth.user.PrincipalEntity;
+import com.example.auth.user.PrincipalTypeEnum;
+import com.example.auth.user.RoleEnum;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
@@ -31,14 +32,18 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
 /**
- * A real, freshly-generated RSA keypair and real Nimbus encoder/decoder -- not mocked. What's
- * worth testing here is whether the issued token's claim SHAPE matches what shortener-service's
- * GrpcSecurity config expects (authorities-claim-name: permissions), which no mock can confirm.
+ * A real, freshly-generated RSA keypair and real Nimbus encoder/decoder -- not
+ * mocked. What's
+ * worth testing here is whether the issued token's claim SHAPE matches what
+ * shortener-service's
+ * GrpcSecurity config expects (authorities-claim-name: permissions), which no
+ * mock can confirm.
  */
 @ExtendWith(MockitoExtension.class)
 class JwtServiceTest {
 
-  @Mock private RoleRepository roleRepository;
+  @Mock
+  private RoleRepository roleRepository;
 
   private JwtDecoder jwtDecoder;
   private JwtService jwtService;
@@ -61,9 +66,9 @@ class JwtServiceTest {
 
   @Test
   void issueAccessToken_expandsRolesIntoTheirCatalogPermissions() {
-    Principal principal = new Principal("hash-not-relevant-here", Set.of("USER"));
+    PrincipalEntity principal = new PrincipalEntity("hash-not-relevant-here", Set.of("USER"));
     when(roleRepository.findAllById(Set.of("USER")))
-        .thenReturn(List.of(new Role("USER", Set.of("CREATE_SHORT_URL"))));
+        .thenReturn(List.of(new RoleEnum("USER", Set.of("CREATE_SHORT_URL"))));
 
     String token = jwtService.issueAccessToken(principal);
     Jwt decoded = jwtDecoder.decode(token);
@@ -71,15 +76,17 @@ class JwtServiceTest {
     assertThat(decoded.getSubject()).isEqualTo(principal.getId().toString());
     assertThat(decoded.getIssuer().toString()).isEqualTo("https://auth-service-test");
     assertThat(decoded.<List<String>>getClaim("roles")).containsExactly("USER");
-    // The permission comes from the ROLE's catalog entry, not principal.getPermissions()
-    // directly -- this is the "expansion happens once, at mint time" behavior JwtService's
+    // The permission comes from the ROLE's catalog entry, not
+    // principal.getPermissions()
+    // directly -- this is the "expansion happens once, at mint time" behavior
+    // JwtService's
     // own class-level javadoc claims.
     assertThat(decoded.<List<String>>getClaim("permissions")).containsExactly("CREATE_SHORT_URL");
   }
 
   @Test
   void issueAccessToken_includesDirectGrantsAlongsideRolePermissions() {
-    Principal principal = new Principal("hash-not-relevant-here", Set.of());
+    PrincipalEntity principal = new PrincipalEntity("hash-not-relevant-here", Set.of());
     principal.getPermissions().add("DIRECT_GRANT");
     when(roleRepository.findAllById(any())).thenReturn(List.of());
 
@@ -87,5 +94,25 @@ class JwtServiceTest {
     Jwt decoded = jwtDecoder.decode(token);
 
     assertThat(decoded.<List<String>>getClaim("permissions")).containsExactly("DIRECT_GRANT");
+  }
+
+  @Test
+  void issueServiceToken_usesTheShorterServiceTtl() {
+    PrincipalEntity principal = new PrincipalEntity("hash-not-relevant-here", Set.of("SERVICE_INTERNAL"),
+        PrincipalTypeEnum.SERVICE);
+    when(roleRepository.findAllById(Set.of("SERVICE_INTERNAL")))
+        .thenReturn(List.of(new RoleEnum("SERVICE_INTERNAL", Set.of("CREATE_PRINCIPAL"))));
+
+    String token = jwtService.issueServiceToken(principal);
+    Jwt decoded = jwtDecoder.decode(token);
+
+    assertThat(decoded.<List<String>>getClaim("permissions")).containsExactly("CREATE_PRINCIPAL");
+    Duration actualTtl = Duration.between(decoded.getIssuedAt(), decoded.getExpiresAt());
+    assertThat(actualTtl).isEqualTo(jwtService.serviceTokenTtl());
+    // Distinct from the 15-minute access-token TTL this same JwtService instance
+    // was
+    // constructed with -- confirms issueServiceToken doesn't just delegate to
+    // issueAccessToken.
+    assertThat(actualTtl).isNotEqualTo(Duration.ofMinutes(15));
   }
 }

@@ -1,5 +1,8 @@
-package com.example.shortener.exception;
+package com.example.shortener;
 
+import com.example.shortener.exception.InvalidArgumentException;
+import com.example.shortener.link.exception.AuditUnavailableException;
+import com.example.shortener.link.exception.UrlFlaggedException;
 import io.grpc.Status;
 import org.springframework.grpc.server.advice.GrpcAdvice;
 import org.springframework.grpc.server.advice.GrpcExceptionHandler;
@@ -10,6 +13,8 @@ import org.springframework.grpc.server.advice.GrpcExceptionHandler;
  * and applies the whole thing as one global interceptor -- no manual registration needed. See
  * {@code GrpcExceptionHandlingTest} for proof of the fallback this replaces: an exception with no
  * handler here surfaces to the client as {@code Status.UNKNOWN}, not a crash.
+ *
+ * Colocated with {@link ShortenerGrpcService} as part of the gRPC transport boundary.
  */
 @GrpcAdvice
 public class ShortenerExceptionAdvice {

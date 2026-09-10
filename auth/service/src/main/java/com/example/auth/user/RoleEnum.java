@@ -1,4 +1,4 @@
-package com.example.auth.entity;
+package com.example.auth.user;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -9,11 +9,15 @@ import java.util.Set;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-/** A named bundle of permissions -- a catalog row, not linked to Principal via a foreign key
- * (Principal.roles is just names, string-matched against this table at token-mint time). */
+/**
+ * A named bundle of permissions -- a catalog row, not linked to Principal via a
+ * foreign key
+ * (Principal.roles is just names, string-matched against this table at
+ * token-mint time).
+ */
 @Entity
 @Table(name = "roles")
-public class Role {
+public class RoleEnum {
 
   @Id
   @Column(name = "name")
@@ -23,11 +27,11 @@ public class Role {
   @Column(name = "permissions", columnDefinition = "text[]")
   private Set<String> permissions = new HashSet<>();
 
-  protected Role() {
+  protected RoleEnum() {
     // JPA
   }
 
-  public Role(String name, Set<String> permissions) {
+  public RoleEnum(String name, Set<String> permissions) {
     this.name = name;
     this.permissions = new HashSet<>(permissions);
   }

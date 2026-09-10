@@ -1,7 +1,9 @@
-package com.example.auth.entity;
+package com.example.auth.user;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
@@ -13,16 +15,25 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 /**
- * The identity root. {@code roles} and {@code permissions} are plain Postgres {@code text[]}
- * columns, string-matched by name against the {@link Role} catalog at token-mint time -- no
- * join table, no foreign key. {@code permissions} is a direct-grant escape hatch alongside
- * {@code roles}, kept separate so a one-off grant never requires inventing a one-person role.
+ * The identity root. {@code roles} and {@code permissions} are plain Postgres
+ * {@code text[]}
+ * columns, string-matched by name against the {@link RoleEnum} catalog at
+ * token-mint time -- no
+ * join table, no foreign key. {@code permissions} is a direct-grant escape
+ * hatch alongside
+ * {@code roles}, kept separate so a one-off grant never requires inventing a
+ * one-person role.
  */
 @Entity
 @Table(name = "principals")
-public class Principal {
+public class PrincipalEntity {
 
-  @Id private UUID id;
+  @Id
+  private UUID id;
+
+  @Enumerated(EnumType.STRING)
+  @Column(name = "type", nullable = false)
+  private PrincipalTypeEnum type;
 
   @Column(name = "secret_hash", nullable = false)
   private String secretHash;
@@ -39,21 +50,32 @@ public class Principal {
   @Column(name = "created_at", nullable = false, updatable = false)
   private Instant createdAt;
 
-  protected Principal() {
+  protected PrincipalEntity() {
     // JPA
   }
 
-  public Principal(String secretHash, Set<String> roles) {
-    // Assigned, not @GeneratedValue -- a valid id from the moment of construction, not only
-    // after Hibernate persists it, which is what makes this entity usable in a plain unit
+  public PrincipalEntity(String secretHash, Set<String> roles) {
+    this(secretHash, roles, PrincipalTypeEnum.USER);
+  }
+
+  public PrincipalEntity(String secretHash, Set<String> roles, PrincipalTypeEnum type) {
+    // Assigned, not @GeneratedValue -- a valid id from the moment of construction,
+    // not only
+    // after Hibernate persists it, which is what makes this entity usable in a
+    // plain unit
     // test with no persistence context at all.
     this.id = UUID.randomUUID();
     this.secretHash = secretHash;
     this.roles = new HashSet<>(roles);
+    this.type = type;
   }
 
   public UUID getId() {
     return id;
+  }
+
+  public PrincipalTypeEnum getType() {
+    return type;
   }
 
   public String getSecretHash() {

@@ -39,8 +39,8 @@ message LoginResponse {
 }
 
 // Internal surface, called by user-service only when creating a new account.
-// No auth required on this call today -- same trust-the-network-boundary
-// posture shortener-service's call to link-audit-service already has.
+// Requires CREATE_PRINCIPAL -- see IssueServiceToken below for how a service
+// gets a token carrying it.
 message CreatePrincipalRequest {
   string email = 1;
   string password = 2; // plaintext; auth-service hashes it, never stores it as-is
@@ -50,7 +50,23 @@ message CreatePrincipalResponse {
   string principal_id = 1; // UUID, as a string
 }
 
+// Client-credentials grant for SERVICE-typed principals (not end users). Unauthenticated
+// itself -- it's how a caller bootstraps having a token at all, same trust level as Login.
+message IssueServiceTokenRequest {
+  string client_id     = 1;
+  string client_secret = 2;
+}
+
+message IssueServiceTokenResponse {
+  string access_token        = 1;
+  int64  expires_in_seconds  = 2;
+}
+
 service AuthService {
   rpc Login(LoginRequest) returns (LoginResponse);
-  rpc CreatePrincipal(CreatePrincipalRequest) returns (CreatePrincipalResponse);
+  rpc IssueServiceToken(IssueServiceTokenRequest) returns (IssueServiceTokenResponse);
+
+  rpc CreatePrincipal(CreatePrincipalRequest) returns (CreatePrincipalResponse) {
+    option (auth.api.requires_permissions).permissions = "CREATE_PRINCIPAL";
+  }
 }

@@ -19,13 +19,16 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.Resource;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
 /**
- * RS256 key material for MINTING tokens. No {@code JwtDecoder} bean here -- auth-service
- * never validates an incoming bearer token itself (Login/CreatePrincipal are unauthenticated);
- * shortener-service does that validation, from its own copy of the public half of this key.
+ * RS256 key material for both MINTING and (now that CreatePrincipal is permission-gated)
+ * VALIDATING tokens. No PEM needs copying for the decoder side -- auth-service already holds
+ * both halves of its own key for minting, so the decoder just reuses the same {@link RSAKey}
+ * bean, unlike shortener-service, which validates against a copied public-key file.
  *
  * <p>PEM parsing is done by hand with plain {@link KeyFactory} rather than relying on Spring
  * to convert a {@code classpath:...} string directly to {@link RSAPublicKey}/{@link
@@ -57,6 +60,11 @@ public class JwtKeyConfig {
   @Bean
   JwtEncoder jwtEncoder(JWKSource<SecurityContext> jwkSource) {
     return new NimbusJwtEncoder(jwkSource);
+  }
+
+  @Bean
+  JwtDecoder jwtDecoder(RSAKey rsaKey) throws Exception {
+    return NimbusJwtDecoder.withPublicKey(rsaKey.toRSAPublicKey()).build();
   }
 
   @Bean

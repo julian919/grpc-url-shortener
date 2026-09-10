@@ -13,6 +13,10 @@ services:
       POSTGRES_DB: authdb
       POSTGRES_USER: auth
       POSTGRES_PASSWORD: auth
+    volumes:
+      - ./init-db:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U auth -d authdb"]
       interval: 5s
@@ -50,8 +54,15 @@ services:
       dockerfile: shortener/service/Dockerfile
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://auth-postgres:5432/shortenerdb
+      SPRING_DATASOURCE_USERNAME: auth
+      SPRING_DATASOURCE_PASSWORD: auth
     ports:
       - "9090:9090"
     depends_on:
-      - linkaudit-service
-      - auth-service
+      linkaudit-service:
+        condition: service_started
+      auth-service:
+        condition: service_started
+      auth-postgres:
+        condition: service_healthy

@@ -105,9 +105,11 @@
             javac can see the generated classes.
           -->
           <ignoreProjectDependencies>true</ignoreProjectDependencies>
+          <embedSourcesInClassOutputs>false</embedSourcesInClassOutputs>
         </configuration>
         <executions>
           <execution>
+            <id>generate</id>
             <goals><goal>generate</goal></goals>
           </execution>
         </executions>

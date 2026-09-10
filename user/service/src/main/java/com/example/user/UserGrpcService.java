@@ -1,4 +1,4 @@
-package com.example.user.grpc;
+package com.example.user;
 
 import com.example.user.api.RegisterRequest;
 import com.example.user.api.RegisterResponse;

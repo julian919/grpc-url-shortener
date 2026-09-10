@@ -15,7 +15,8 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class RegistrationServiceTest {
 
-  @Mock private PrincipalDirectory principalDirectory;
+  @Mock
+  private RegistrationInterface principalDirectory;
 
   @Test
   void register_blankEmail_throwsInvalidArgument() {

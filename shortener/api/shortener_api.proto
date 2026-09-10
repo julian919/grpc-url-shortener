@@ -76,6 +76,23 @@ message ResolveShortLinkResponse {
   ShortLink link = 1;
 }
 
+message RetrieveShortLinksRequest {
+  int32 page      = 1;
+  int32 page_size = 2;
+}
+
+message PageInfo {
+  int32 page        = 1;
+  int32 page_size   = 2;
+  int32 total_count = 3;
+  int32 total_pages = 4;
+}
+
+message RetrieveShortLinksResponse {
+  repeated ShortLink links     = 1;
+  PageInfo           page_info = 2;
+}
+
 service ShortenerService {
   // Write path. Low QPS. Requires CREATE_SHORT_URL -- the requirement lives
   // here, on the contract, not in shortener-service's own Java config. Any
@@ -88,4 +105,8 @@ service ShortenerService {
   // Read path. This is the RPC that gets scaled to N replicas in lesson 6,
   // and the one ghz hammers in lesson 7. No permission required -- public.
   rpc ResolveShortLink(ResolveShortLinkRequest) returns (ResolveShortLinkResponse);
+
+  rpc RetrieveShortLinks(RetrieveShortLinksRequest) returns (RetrieveShortLinksResponse){
+    option (auth.api.requires_permissions).permissions = "LIST_SHORT_URL";
+  };
 }

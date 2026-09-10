@@ -1,4 +1,4 @@
-package com.example.shortener.shortcode;
+package com.example.shortener.link;
 
 import java.util.Base64;
 import java.util.UUID;

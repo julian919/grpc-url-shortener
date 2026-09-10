@@ -1,4 +1,4 @@
-package com.example.shortener.shortcode;
+package com.example.shortener.link;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

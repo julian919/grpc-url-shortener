@@ -16,6 +16,16 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # No public-key-location needed here -- JwtKeyConfig defines the JwtDecoder bean
+          # directly from the same RSAKey already loaded for minting. These two properties
+          # are still required though: they're read by Boot's authorities-converter wiring
+          # independently of which JwtDecoder bean is in play.
+          authorities-claim-name: permissions
+          authority-prefix: ""
 
 management:
   endpoints:

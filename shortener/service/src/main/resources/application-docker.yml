@@ -11,3 +11,5 @@ spring:
       channel:
         link-audit:
           target: "static://linkaudit-service:9091"
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://auth-postgres:5432/shortenerdb}

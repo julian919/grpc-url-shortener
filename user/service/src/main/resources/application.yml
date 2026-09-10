@@ -14,3 +14,11 @@ management:
     web:
       exposure:
         include: health,info
+
+app:
+  auth-client:
+    # Dev default, overridable in compose/prod -- same pattern bookstore-api uses for its own
+    # service client secret. Must match the bcrypt hash seeded for this client_id in
+    # auth-service's V3__seed_user_service_client.sql.
+    client-id: user-service
+    client-secret: ${USER_SERVICE_AUTH_SECRET:user-service-secret}

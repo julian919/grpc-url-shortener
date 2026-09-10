@@ -1,7 +1,8 @@
 package com.example.auth.service;
 
-import com.example.auth.entity.Principal;
 import com.example.auth.repository.RoleRepository;
+import com.example.auth.user.PrincipalEntity;
+
 import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
@@ -16,9 +17,12 @@ import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
 
 /**
- * Mints RS256 access tokens. Permission expansion (role names -> the catalog's permissions)
- * happens once, HERE, at mint time -- every downstream service just reads the token's
- * {@code permissions} claim directly, never re-resolving roles against this service's own DB.
+ * Mints RS256 access tokens. Permission expansion (role names -> the catalog's
+ * permissions)
+ * happens once, HERE, at mint time -- every downstream service just reads the
+ * token's
+ * {@code permissions} claim directly, never re-resolving roles against this
+ * service's own DB.
  */
 @Service
 public class JwtService {
@@ -39,26 +43,41 @@ public class JwtService {
     this.accessTokenTtl = accessTokenTtl;
   }
 
+  // Deliberately short -- a service is expected to re-fetch rather than hold a
+  // long-lived credential in memory. No refresh token either, same reasoning.
+  private static final Duration SERVICE_TOKEN_TTL = Duration.ofMinutes(5);
+
   public Duration accessTokenTtl() {
     return accessTokenTtl;
   }
 
-  public String issueAccessToken(Principal principal) {
+  public Duration serviceTokenTtl() {
+    return SERVICE_TOKEN_TTL;
+  }
+
+  public String issueAccessToken(PrincipalEntity principal) {
+    return issue(principal, accessTokenTtl);
+  }
+
+  public String issueServiceToken(PrincipalEntity principal) {
+    return issue(principal, SERVICE_TOKEN_TTL);
+  }
+
+  private String issue(PrincipalEntity principal, Duration ttl) {
     Instant now = Instant.now();
-    var claims =
-        JwtClaimsSet.builder()
-            .issuer(issuerUri)
-            .subject(principal.getId().toString())
-            .claim("roles", List.copyOf(principal.getRoles()))
-            .claim("permissions", List.copyOf(effectivePermissions(principal)))
-            .issuedAt(now)
-            .expiresAt(now.plus(accessTokenTtl))
-            .build();
+    var claims = JwtClaimsSet.builder()
+        .issuer(issuerUri)
+        .subject(principal.getId().toString())
+        .claim("roles", List.copyOf(principal.getRoles()))
+        .claim("permissions", List.copyOf(effectivePermissions(principal)))
+        .issuedAt(now)
+        .expiresAt(now.plus(ttl))
+        .build();
     var header = JwsHeader.with(SignatureAlgorithm.RS256).build();
     return jwtEncoder.encode(JwtEncoderParameters.from(header, claims)).getTokenValue();
   }
 
-  private Set<String> effectivePermissions(Principal principal) {
+  private Set<String> effectivePermissions(PrincipalEntity principal) {
     Set<String> permissions = new HashSet<>(principal.getPermissions());
     roleRepository.findAllById(principal.getRoles()).forEach(role -> permissions.addAll(role.getPermissions()));
     return permissions;
