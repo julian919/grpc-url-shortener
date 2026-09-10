@@ -20,10 +20,6 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          # No public-key-location needed here -- JwtKeyConfig defines the JwtDecoder bean
-          # directly from the same RSAKey already loaded for minting. These two properties
-          # are still required though: they're read by Boot's authorities-converter wiring
-          # independently of which JwtDecoder bean is in play.
           authorities-claim-name: permissions
           authority-prefix: ""
 
@@ -35,13 +31,8 @@ management:
 
 app:
   jwt:
-    # Doesn't need to resolve to anything real -- no JWKS-over-HTTP in this design
-    # (auth-service has no HTTP port at all; shortener-service gets the public key as a
-    # bundled classpath resource instead). Still needs to be a syntactically valid URI,
-    # though: Spring Security's Jwt.getIssuer() parses the `iss` claim as a java.net.URL
-    # and throws if it can't -- a bare hostname-like string like "auth-service" fails
-    # that even though raw JWT itself doesn't require `iss` to be a URI at all.
     issuer-uri: ${JWT_ISSUER_URI:https://auth-service}
     private-key: classpath:certs/private.pem
     public-key: classpath:certs/public.pem
     access-token-ttl: 15m
+    refresh-token-ttl: 168h

@@ -36,10 +36,22 @@ message LoginRequest {
 message LoginResponse {
   string access_token = 1;
   int64  expires_in_seconds = 2;
+  string refresh_token = 3;
+}
+
+// ---------------------------------------------------------------------------
+// Standard OAuth2 Token bundle, modeled after Cognixus OAuth2Token.
+// Returned by GetClientToken and RenewToken.
+// ---------------------------------------------------------------------------
+message OAuth2Token {
+  string access_token        = 1;
+  string token_type          = 2; // "bearer"
+  int64  expires_in_seconds  = 3;
+  string refresh_token       = 4; // present for user refreshable sessions
 }
 
 // Internal surface, called by user-service only when creating a new account.
-// Requires CREATE_PRINCIPAL -- see IssueServiceToken below for how a service
+// Requires CREATE_PRINCIPAL -- see GetClientToken below for how a service
 // gets a token carrying it.
 message CreatePrincipalRequest {
   string email = 1;
@@ -50,21 +62,34 @@ message CreatePrincipalResponse {
   string principal_id = 1; // UUID, as a string
 }
 
-// Client-credentials grant for SERVICE-typed principals (not end users). Unauthenticated
-// itself -- it's how a caller bootstraps having a token at all, same trust level as Login.
-message IssueServiceTokenRequest {
+
+// Request for GetClientToken.
+// Modeled after Cognixus: client_id and client_secret can either be passed
+// here in the request body, OR supplied via gRPC metadata header:
+// "Authorization: Basic <base64(client_id:client_secret)>".
+message GetClientTokenRequest {
   string client_id     = 1;
   string client_secret = 2;
 }
 
-message IssueServiceTokenResponse {
-  string access_token        = 1;
-  int64  expires_in_seconds  = 2;
+// Request to renew an access token using a long-lived refresh token.
+message RenewTokenRequest {
+  string refresh_token = 1;
+}
+
+// Response from RenewToken containing the new access token and rotated refresh token.
+message RenewTokenResponse {
+  OAuth2Token token = 1;
 }
 
 service AuthService {
   rpc Login(LoginRequest) returns (LoginResponse);
-  rpc IssueServiceToken(IssueServiceTokenRequest) returns (IssueServiceTokenResponse);
+
+  // Modern Cognixus-style client token issuance
+  rpc GetClientToken(GetClientTokenRequest) returns (OAuth2Token);
+
+  // OAuth 2.1 refresh token rotation
+  rpc RenewToken(RenewTokenRequest) returns (RenewTokenResponse);
 
   rpc CreatePrincipal(CreatePrincipalRequest) returns (CreatePrincipalResponse) {
     option (auth.api.requires_permissions).permissions = "CREATE_PRINCIPAL";

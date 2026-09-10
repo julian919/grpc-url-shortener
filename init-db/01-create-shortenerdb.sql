@@ -1,1 +1,2 @@
 CREATE DATABASE shortenerdb;
+GRANT ALL PRIVILEGES ON DATABASE shortenerdb TO auth;

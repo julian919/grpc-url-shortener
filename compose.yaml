@@ -7,7 +7,7 @@ services:
     ports:
       - "9091:9091"
 
-  auth-postgres:
+  postgres:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: authdb
@@ -22,19 +22,23 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    networks:
+      default:
+        aliases:
+          - auth-postgres
 
   auth-service:
     build:
       context: .
       dockerfile: auth/service/Dockerfile
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://auth-postgres:5432/authdb
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/authdb
       SPRING_DATASOURCE_USERNAME: auth
       SPRING_DATASOURCE_PASSWORD: auth
     ports:
       - "9092:9092"
     depends_on:
-      auth-postgres:
+      postgres:
         condition: service_healthy
 
   user-service:
@@ -54,7 +58,7 @@ services:
       dockerfile: shortener/service/Dockerfile
     environment:
       SPRING_PROFILES_ACTIVE: docker
-      SPRING_DATASOURCE_URL: jdbc:postgresql://auth-postgres:5432/shortenerdb
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shortenerdb
       SPRING_DATASOURCE_USERNAME: auth
       SPRING_DATASOURCE_PASSWORD: auth
     ports:
@@ -64,5 +68,5 @@ services:
         condition: service_started
       auth-service:
         condition: service_started
-      auth-postgres:
+      postgres:
         condition: service_healthy

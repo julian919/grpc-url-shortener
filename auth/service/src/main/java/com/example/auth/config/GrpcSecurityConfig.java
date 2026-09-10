@@ -11,7 +11,7 @@ import org.springframework.security.config.Customizer;
  * A first for this service: previously auth-service only MINTED tokens, never validated an
  * incoming one. Now that CreatePrincipal is permission-gated, it needs the same
  * authentication + proto-declared-permission wiring shortener-service already has.
- * Login/IssueServiceToken stay public automatically -- ProtoPermissionAuthorizationManager
+ * Login/GetClientToken/RenewToken stay public automatically -- ProtoPermissionAuthorizationManager
  * grants when an RPC declares no required permission.
  */
 @Configuration
