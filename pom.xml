@@ -85,4 +85,45 @@
     </dependencies>
   </dependencyManagement>
 
+  <build>
+    <plugins>
+      <!--
+        Loads Mockito as a real -javaagent at JVM start, instead of letting it
+        attach one to itself mid-run.
+
+        Without this the suite fails intermittently (measured: 3 of 6 clean
+        runs) with "Could not modify all classes [class java.lang.Object,
+        ...]". Mockito's inline mock-maker needs to retransform loaded classes;
+        self-attaching an agent after the JVM is up is best-effort and racy, and
+        newer JDKs are progressively disallowing it. The warning Mockito prints
+        ("self-attaching ... will no longer work in future releases of the
+        JDK") is the same problem. Declaring the agent up front is the fix
+        Mockito itself recommends.
+
+        dependency:properties is what makes ${org.mockito:mockito-core:jar}
+        resolve to the jar's real path in the local repository; mockito-core's
+        manifest carries Premain-Class, so the jar IS the agent.
+      -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-dependency-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>resolve-agent-jar-paths</id>
+            <goals>
+              <goal>properties</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <argLine>-javaagent:${org.mockito:mockito-core:jar}</argLine>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
 </project>

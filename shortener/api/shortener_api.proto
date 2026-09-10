@@ -15,6 +15,14 @@ package shortener.api;
 // a MethodOptions extension rather than a Java-side config check.
 import "auth/api/auth_api.proto";
 
+// google.api.http is the SAME kind of thing as requires_permissions above: a
+// MethodOptions extension, declared on the contract rather than configured in
+// some service's own source. It maps each rpc onto an HTTP verb + path, which
+// is what lets the edge proxy expose these rpcs as JSON over HTTP without a
+// line of hand-written routing code anywhere. Vendored under google/api/ --
+// same treatment google/protobuf/descriptor.proto already gets.
+import "google/api/annotations.proto";
+
 option java_multiple_files = true;
 option java_package = "com.example.shortener.api";
 option java_outer_classname = "ShortenerProto";
@@ -100,13 +108,33 @@ service ShortenerService {
   // .proto, before ever touching shortener-service's source.
   rpc CreateShortLink(CreateShortLinkRequest) returns (CreateShortLinkResponse) {
     option (auth.api.requires_permissions).permissions = "CREATE_SHORT_URL";
+
+    // body: "*" means the whole JSON object maps onto the request message, so
+    // {"long_url": "..."} becomes CreateShortLinkRequest{long_url}. The
+    // Authorization header rides through untouched as gRPC metadata, which is
+    // what keeps the CREATE_SHORT_URL check above working over HTTP too.
+    option (google.api.http) = {
+      post: "/api/links"
+      body: "*"
+    };
   }
 
   // Read path. This is the RPC that gets scaled to N replicas in lesson 6,
   // and the one ghz hammers in lesson 7. No permission required -- public.
-  rpc ResolveShortLink(ResolveShortLinkRequest) returns (ResolveShortLinkResponse);
+  rpc ResolveShortLink(ResolveShortLinkRequest) returns (ResolveShortLinkResponse) {
+    // {short_code} binds the path segment onto the field of the same name.
+    option (google.api.http) = {
+      get: "/api/links/{short_code}"
+    };
+  }
 
   rpc RetrieveShortLinks(RetrieveShortLinksRequest) returns (RetrieveShortLinksResponse){
     option (auth.api.requires_permissions).permissions = "LIST_SHORT_URL";
+
+    // No body and no path params, so every remaining field of the request
+    // message is read from the query string: /api/links?page=2&page_size=50
+    option (google.api.http) = {
+      get: "/api/links"
+    };
   };
 }

@@ -1,0 +1,12 @@
+package com.example.auth.principal.repository;
+
+import com.example.auth.principal.entity.AuthProviderEnum;
+import com.example.auth.principal.entity.LoginEntity;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface LoginRepository extends JpaRepository<LoginEntity, UUID> {
+
+  Optional<LoginEntity> findByProviderAndAccountId(AuthProviderEnum provider, String accountId);
+}

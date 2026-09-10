@@ -1,5 +1,19 @@
 services:
 
+  # Single HTTP entry point for browsers. Transcodes JSON <-> gRPC using the
+  # descriptor built from shortener_api.proto -- see edge/envoy.yaml.
+  # The gRPC ports below stay published so grpcurl/Postman reflection still
+  # works against the services directly; the edge is additive, not a gate.
+  edge:
+    build:
+      context: .
+      dockerfile: edge/Dockerfile
+    ports:
+      - "8080:8080"   # the one URL the frontend needs
+      - "9901:9901"   # envoy admin: /config_dump, /stats, /ready
+    depends_on:
+      - shortener-service
+
   linkaudit-service:
     build:
       context: .
