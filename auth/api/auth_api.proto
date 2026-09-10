@@ -4,6 +4,12 @@ package auth.api;
 
 import "google/protobuf/descriptor.proto";
 
+// Maps the browser-facing rpcs below onto HTTP verbs + paths for the edge
+// proxy. Only Login and RenewToken are mapped: GetClientToken and
+// CreatePrincipal are service-to-service and stay gRPC-only even though this
+// whole service is listed in the transcoder config.
+import "google/api/annotations.proto";
+
 option java_multiple_files = true;
 option java_package = "com.example.auth.api";
 option java_outer_classname = "AuthProto";
@@ -83,13 +89,25 @@ message RenewTokenResponse {
 }
 
 service AuthService {
-  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc Login(LoginRequest) returns (LoginResponse) {
+    option (google.api.http) = {
+      post: "/api/login"
+      body: "*"
+    };
+  }
 
-  // Modern Cognixus-style client token issuance
+  // Modern Cognixus-style client token issuance. No http mapping: only
+  // user-service calls this, over gRPC, with Basic client credentials.
   rpc GetClientToken(GetClientTokenRequest) returns (OAuth2Token);
 
-  // OAuth 2.1 refresh token rotation
-  rpc RenewToken(RenewTokenRequest) returns (RenewTokenResponse);
+  // OAuth 2.1 refresh token rotation. The browser holds the refresh token and
+  // trades it for a fresh access token here.
+  rpc RenewToken(RenewTokenRequest) returns (RenewTokenResponse) {
+    option (google.api.http) = {
+      post: "/api/token/refresh"
+      body: "*"
+    };
+  }
 
   rpc CreatePrincipal(CreatePrincipalRequest) returns (CreatePrincipalResponse) {
     option (auth.api.requires_permissions).permissions = "CREATE_PRINCIPAL";

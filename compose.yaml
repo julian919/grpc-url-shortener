@@ -1,9 +1,11 @@
 services:
 
   # Single HTTP entry point for browsers. Transcodes JSON <-> gRPC using the
-  # descriptor built from shortener_api.proto -- see edge/envoy.yaml.
-  # The gRPC ports below stay published so grpcurl/Postman reflection still
-  # works against the services directly; the edge is additive, not a gate.
+  # combined descriptor built from the shortener/auth/user protos -- see
+  # edge/descriptor and edge/envoy.yaml. The gRPC ports below stay published so
+  # grpcurl/Postman reflection still works against the services directly; the
+  # edge is additive, not a gate. linkaudit has no browser-facing rpc so it is
+  # not behind the edge.
   edge:
     build:
       context: .
@@ -13,6 +15,8 @@ services:
       - "9901:9901"   # envoy admin: /config_dump, /stats, /ready
     depends_on:
       - shortener-service
+      - auth-service
+      - user-service
 
   linkaudit-service:
     build:

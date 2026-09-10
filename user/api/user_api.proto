@@ -6,6 +6,9 @@ option java_multiple_files = true;
 option java_package = "com.example.user.api";
 option java_outer_classname = "UserProto";
 
+// HTTP mapping for the edge proxy -- see edge/descriptor and edge/envoy.yaml.
+import "google/api/annotations.proto";
+
 message RegisterRequest {
   string email = 1;
   string password = 2;
@@ -16,5 +19,10 @@ message RegisterResponse {
 }
 
 service UserService {
-  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Register(RegisterRequest) returns (RegisterResponse) {
+    option (google.api.http) = {
+      post: "/api/register"
+      body: "*"
+    };
+  }
 }

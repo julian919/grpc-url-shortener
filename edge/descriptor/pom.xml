@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.example</groupId>
+    <artifactId>grpc-scaling-workshop</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>../../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>edge-descriptor</artifactId>
+  <name>edge-descriptor</name>
+
+  <!--
+    One FileDescriptorSet covering every service that has a browser-facing
+    surface, built by ONE protoc invocation so each .proto file appears exactly
+    once. The per-service api modules can't be reused for this: each of those
+    emits its own set with its own copy of the shared imports
+    (google/protobuf/descriptor.proto, auth/api/auth_api.proto), and Envoy
+    rejects a descriptor with duplicate file entries.
+
+    linkaudit is deliberately absent. Its only rpc, ReportLinkCreated, is
+    called by shortener-service over gRPC and never by a browser, so there is
+    nothing to transcode.
+
+    Output: target/protobuf/api-bundle.pb, consumed by edge/Dockerfile.
+  -->
+
+  <properties>
+    <proto.root>${project.basedir}/../..</proto.root>
+  </properties>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>io.github.ascopes</groupId>
+        <artifactId>protobuf-maven-plugin</artifactId>
+        <version>${protobuf-maven-plugin.version}</version>
+        <configuration>
+          <protoc kind="binary-maven">
+            <version>${protobuf.version}</version>
+          </protoc>
+
+          <!-- Descriptor only. No Java, no grpc-java plugin. The api modules
+               already own code generation; this module owns the wire bundle.
+
+               Spring Boot 4.1's parent pom contributes a managed
+               protobuf-maven-plugin execution that runs protoc-gen-grpc-java
+               (this is the "gRPC starters are inside Boot now" machinery).
+               combine.self="override" on an empty <plugins> clears that so
+               protoc emits nothing but the descriptor set. -->
+          <javaEnabled>false</javaEnabled>
+          <plugins combine.self="override"/>
+
+          <!-- Root the source dir at the repo root so files register under
+               their import path (auth/api/auth_api.proto), matching how the
+               protos import each other. -->
+          <sourceDirectories>
+            <sourceDirectory>${proto.root}</sourceDirectory>
+          </sourceDirectories>
+          <includes>
+            <include>shortener/api/*.proto</include>
+            <include>auth/api/*.proto</include>
+            <include>user/api/*.proto</include>
+          </includes>
+
+          <importPaths>
+            <importPath>${proto.root}</importPath>
+          </importPaths>
+          <ignoreProjectDependencies>true</ignoreProjectDependencies>
+
+          <outputDescriptorFile>${project.build.directory}/protobuf/api-bundle.pb</outputDescriptorFile>
+          <outputDescriptorIncludeImports>true</outputDescriptorIncludeImports>
+          <outputDescriptorRetainOptions>true</outputDescriptorRetainOptions>
+        </configuration>
+        <executions>
+          <execution>
+            <id>generate</id>
+            <goals><goal>generate</goal></goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

@@ -9,10 +9,10 @@
 FROM eclipse-temurin:21-jdk AS descriptor
 WORKDIR /workspace
 COPY . .
-RUN ./mvnw -q -pl shortener/api -am package -DskipTests
+RUN ./mvnw -q -pl edge/descriptor -am package -DskipTests
 
 FROM envoyproxy/envoy:v1.34-latest
-COPY --from=descriptor /workspace/shortener/api/target/protobuf/shortener.pb /etc/envoy/shortener.pb
+COPY --from=descriptor /workspace/edge/descriptor/target/protobuf/api-bundle.pb /etc/envoy/api-bundle.pb
 COPY edge/envoy.yaml /etc/envoy/envoy.yaml
 EXPOSE 8080 9901
 CMD ["envoy", "-c", "/etc/envoy/envoy.yaml"]

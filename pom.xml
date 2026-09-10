@@ -40,6 +40,10 @@
     <module>auth/service</module>
     <module>user/api</module>
     <module>user/service</module>
+
+    <!-- Not a domain: the combined proto descriptor the edge proxy transcodes
+         from. See edge/descriptor/pom.xml. -->
+    <module>edge/descriptor</module>
   </modules>
 
   <properties>

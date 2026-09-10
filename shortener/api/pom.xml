@@ -107,20 +107,10 @@
           <ignoreProjectDependencies>true</ignoreProjectDependencies>
           <embedSourcesInClassOutputs>false</embedSourcesInClassOutputs>
           <!--
-            The FileDescriptorSet Envoy's grpc_json_transcoder reads. This is the
-            SAME schema the Java classes above are generated from, in protobuf's
-            own binary form, which is the whole reason the edge proxy needs no
-            hand-written routing: it learns the HTTP mapping by reading this.
-
-            Both flags below are off by default and both are required.
-              includeImports: Envoy must resolve auth/api + google/api too,
-                              or it cannot build the message types.
-              retainOptions:  the google.api.http rules ARE options. Strip
-                              them and Envoy has no mapping to work from.
+            The Envoy transcoder descriptor is NOT built here. It needs all
+            browser-facing services in one file with no duplicate imports, so
+            it is built once, from a single protoc run, in edge/descriptor.
           -->
-          <outputDescriptorFile>${project.build.directory}/protobuf/shortener.pb</outputDescriptorFile>
-          <outputDescriptorIncludeImports>true</outputDescriptorIncludeImports>
-          <outputDescriptorRetainOptions>true</outputDescriptorRetainOptions>
         </configuration>
         <executions>
           <execution>

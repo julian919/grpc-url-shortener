@@ -1,11 +1,11 @@
-# The edge proxy. One HTTP port for the whole system; everything behind it
-# stays pure gRPC and is never reached directly by a browser.
+# The edge proxy. One HTTP port (8080) for the whole system; every service
+# behind it stays pure gRPC and is never reached directly by a browser.
 #
-# There is no route table describing /api/links, no handler code, no DTO
-# mapping. Envoy learns all of that by reading shortener.pb -- the compiled
-# FileDescriptorSet built from shortener_api.proto, carrying the
-# google.api.http options declared on each rpc. Change the proto, rebuild,
-# and the HTTP surface changes with it.
+# There is no route table listing /api/login, /api/links, etc., and no handler
+# code. Envoy learns the entire HTTP surface by reading api-bundle.pb -- the
+# compiled FileDescriptorSet built from the .proto files in edge/descriptor,
+# carrying the google.api.http option declared on each browser-facing rpc.
+# Change a proto, rebuild the bundle, rebuild this image: the surface follows.
 
 static_resources:
 
@@ -26,41 +26,40 @@ static_resources:
                   virtual_hosts:
                     - name: backend
                       domains: ["*"]
+                      # The transcoder rewrites :path to the gRPC form
+                      # (/auth.api.AuthService/Login) BEFORE routing and clears
+                      # the route cache, so these match on the proto
+                      # package+service, not on the HTTP path the browser sent.
+                      # One entry per browser-facing service.
                       routes:
-                        # The transcoder rewrites :path to the gRPC form
-                        # (/shortener.api.ShortenerService/CreateShortLink) and
-                        # clears the route cache, so routing happens on THAT
-                        # path, not on /api/links.
-                        #
-                        # With one backend a catch-all is unambiguous. When
-                        # linkaudit/auth/user join, this becomes one route per
-                        # service matching prefix: "/<proto.package>.<Service>/".
-                        - match: { prefix: "/" }
-                          route:
-                            cluster: shortener_grpc
-                            # gRPC calls are not bound by the default 15s HTTP
-                            # timeout in the same way; be explicit.
-                            timeout: 15s
+                        - match: { prefix: "/shortener.api.ShortenerService/" }
+                          route: { cluster: shortener_grpc, timeout: 15s }
+                        - match: { prefix: "/auth.api.AuthService/" }
+                          route: { cluster: auth_grpc, timeout: 15s }
+                        - match: { prefix: "/user.api.UserService/" }
+                          route: { cluster: user_grpc, timeout: 15s }
 
                 http_filters:
                   - name: envoy.filters.http.grpc_json_transcoder
                     typed_config:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.grpc_json_transcoder.v3.GrpcJsonTranscoder
-                      proto_descriptor: /etc/envoy/shortener.pb
-                      # Only services named here are exposed over HTTP. An rpc
-                      # with no google.api.http option stays gRPC-only even
-                      # though it lives in a service listed below.
+                      proto_descriptor: /etc/envoy/api-bundle.pb
+                      # An rpc is exposed over HTTP only if BOTH its service is
+                      # listed here AND it carries a google.api.http option.
+                      # auto_mapping stays off, so GetClientToken and
+                      # CreatePrincipal (no option) remain gRPC-only.
                       services:
                         - shortener.api.ShortenerService
-                      # Turns the gRPC status ShortenerExceptionAdvice throws
-                      # into a real HTTP status + JSON body, instead of a 200
-                      # with grpc-status in a trailer. NOT_FOUND becomes 404,
-                      # INVALID_ARGUMENT becomes 400, PERMISSION_DENIED 403.
+                        - auth.api.AuthService
+                        - user.api.UserService
+                      # gRPC status -> real HTTP status + JSON body, instead of
+                      # 200 with grpc-status in a trailer. NOT_FOUND -> 404,
+                      # INVALID_ARGUMENT -> 400, UNAUTHENTICATED -> 401,
+                      # PERMISSION_DENIED -> 403.
                       convert_grpc_status: true
                       print_options:
-                        # proto3 omits zero values in JSON by default, so an
-                        # unset enum or page: 0 would vanish from the response.
-                        # Frontends generally want the field present.
+                        # Keep zero values (unset enum, page: 0) in the JSON;
+                        # proto3 would otherwise drop them and confuse a client.
                         always_print_primitive_fields: true
 
                   - name: envoy.filters.http.router
@@ -68,12 +67,12 @@ static_resources:
                       "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
   clusters:
+    # gRPC is HTTP/2 only. Without http2_protocol_options Envoy speaks HTTP/1.1
+    # upstream and every call fails -- the same trap lesson 6 covers for L4
+    # load balancers.
     - name: shortener_grpc
       type: STRICT_DNS
       lb_policy: ROUND_ROBIN
-      # gRPC is HTTP/2 only. Without this Envoy would speak HTTP/1.1 upstream
-      # and every call would fail -- the same trap lesson 6 covers for L4 load
-      # balancers.
       typed_extension_protocol_options:
         envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
           "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
@@ -86,6 +85,38 @@ static_resources:
               - endpoint:
                   address:
                     socket_address: { address: shortener-service, port_value: 9090 }
+
+    - name: auth_grpc
+      type: STRICT_DNS
+      lb_policy: ROUND_ROBIN
+      typed_extension_protocol_options:
+        envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+          "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+          explicit_http_config:
+            http2_protocol_options: {}
+      load_assignment:
+        cluster_name: auth_grpc
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address: { address: auth-service, port_value: 9092 }
+
+    - name: user_grpc
+      type: STRICT_DNS
+      lb_policy: ROUND_ROBIN
+      typed_extension_protocol_options:
+        envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+          "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+          explicit_http_config:
+            http2_protocol_options: {}
+      load_assignment:
+        cluster_name: user_grpc
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address: { address: user-service, port_value: 9093 }
 
 admin:
   address:
