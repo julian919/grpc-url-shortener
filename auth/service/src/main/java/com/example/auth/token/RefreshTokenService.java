@@ -3,8 +3,11 @@ package com.example.auth.token;
 import com.example.auth.api.OAuth2Token;
 import com.example.auth.principal.entity.PrincipalEntity;
 import com.example.auth.token.entity.RefreshTokenEntity;
+import com.example.auth.token.exception.RefreshTokenExpiredException;
+import com.example.auth.token.exception.RefreshTokenInvalidException;
+import com.example.auth.token.exception.RefreshTokenMissingException;
+import com.example.auth.token.exception.RefreshTokenRevokedException;
 import com.example.auth.token.repository.RefreshTokenRepository;
-import io.grpc.Status;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -52,15 +55,19 @@ public class RefreshTokenService {
     return rawToken;
   }
 
-  @Transactional
+  // noRollbackFor: the revoked-token branch revokes every token for the principal and THEN
+  // throws. Without this, the default rollback-on-RuntimeException undid that revoke-all, so
+  // reuse detection never actually revoked anything (verified live: after a replayed token was
+  // rejected, the attacker-side rotated token still renewed successfully).
+  @Transactional(noRollbackFor = RefreshTokenRevokedException.class)
   public OAuth2Token rotateRefreshToken(String rawRefreshToken) {
     if (rawRefreshToken == null || rawRefreshToken.isBlank()) {
-      throw Status.UNAUTHENTICATED.withDescription("Refresh token is required").asRuntimeException();
+      throw new RefreshTokenMissingException();
     }
 
     String tokenHash = hashToken(rawRefreshToken);
     RefreshTokenEntity entity = refreshTokenRepository.findByTokenHash(tokenHash)
-        .orElseThrow(() -> Status.UNAUTHENTICATED.withDescription("Invalid refresh token").asRuntimeException());
+        .orElseThrow(RefreshTokenInvalidException::new);
 
     PrincipalEntity principal = entity.getPrincipal();
 
@@ -68,11 +75,11 @@ public class RefreshTokenService {
     if (entity.isRevoked()) {
       log.warn("Security Alert: Attempted reuse of revoked refresh token for principal {}", principal.getId());
       refreshTokenRepository.revokeAllForPrincipal(principal);
-      throw Status.UNAUTHENTICATED.withDescription("Revoked refresh token presented").asRuntimeException();
+      throw new RefreshTokenRevokedException();
     }
 
     if (entity.isExpired()) {
-      throw Status.UNAUTHENTICATED.withDescription("Refresh token expired").asRuntimeException();
+      throw new RefreshTokenExpiredException();
     }
 
     // Mark previous token as revoked

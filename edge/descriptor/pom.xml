@@ -65,6 +65,10 @@
             <include>shortener/api/*.proto</include>
             <include>auth/api/*.proto</include>
             <include>user/api/*.proto</include>
+            <!-- google.rpc.ErrorInfo. No service proto imports it, but auth-service
+                 attaches it to error trailers, and Envoy can only render an error
+                 detail as JSON if its type is in this descriptor set. -->
+            <include>google/rpc/error_details.proto</include>
           </includes>
 
           <importPaths>

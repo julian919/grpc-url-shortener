@@ -9,8 +9,11 @@ import static org.mockito.Mockito.when;
 import com.example.auth.api.OAuth2Token;
 import com.example.auth.principal.entity.PrincipalEntity;
 import com.example.auth.token.entity.RefreshTokenEntity;
+import com.example.auth.token.exception.RefreshTokenExpiredException;
+import com.example.auth.token.exception.RefreshTokenInvalidException;
+import com.example.auth.token.exception.RefreshTokenMissingException;
+import com.example.auth.token.exception.RefreshTokenRevokedException;
 import com.example.auth.token.repository.RefreshTokenRepository;
-import io.grpc.StatusRuntimeException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
@@ -21,6 +24,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.annotation.Transactional;
 
 @ExtendWith(MockitoExtension.class)
 class RefreshTokenServiceTest {
@@ -80,6 +84,20 @@ class RefreshTokenServiceTest {
   }
 
   @Test
+  void rotateRefreshToken_blankToken_failsAsMissing() {
+    assertThatThrownBy(() -> refreshTokenService.rotateRefreshToken(" "))
+        .isInstanceOf(RefreshTokenMissingException.class);
+  }
+
+  @Test
+  void rotateRefreshToken_unknownToken_failsAsInvalid() {
+    when(refreshTokenRepository.findByTokenHash(any())).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> refreshTokenService.rotateRefreshToken("never-issued"))
+        .isInstanceOf(RefreshTokenInvalidException.class);
+  }
+
+  @Test
   void rotateRefreshToken_revokedToken_triggersReuseDetectionAndFails() {
     String rawToken = "reused-token";
     RefreshTokenEntity existing = new RefreshTokenEntity(
@@ -92,10 +110,20 @@ class RefreshTokenServiceTest {
     when(refreshTokenRepository.findByTokenHash(any())).thenReturn(Optional.of(existing));
 
     assertThatThrownBy(() -> refreshTokenService.rotateRefreshToken(rawToken))
-        .isInstanceOf(StatusRuntimeException.class)
-        .hasMessageContaining("Revoked refresh token presented");
+        .isInstanceOf(RefreshTokenRevokedException.class);
 
     verify(refreshTokenRepository).revokeAllForPrincipal(principal);
+  }
+
+  @Test
+  void rotateRefreshToken_revokedToken_doesNotRollBackTheRevokeAll() throws Exception {
+    // The mocked repository above can't observe a transaction rollback, and a rollback is
+    // exactly what used to undo the revoke-all. Guard the config that prevents it instead.
+    Transactional tx = RefreshTokenService.class
+        .getMethod("rotateRefreshToken", String.class)
+        .getAnnotation(Transactional.class);
+
+    assertThat(tx.noRollbackFor()).contains(RefreshTokenRevokedException.class);
   }
 
   @Test
@@ -110,7 +138,6 @@ class RefreshTokenServiceTest {
     when(refreshTokenRepository.findByTokenHash(any())).thenReturn(Optional.of(existing));
 
     assertThatThrownBy(() -> refreshTokenService.rotateRefreshToken(rawToken))
-        .isInstanceOf(StatusRuntimeException.class)
-        .hasMessageContaining("Refresh token expired");
+        .isInstanceOf(RefreshTokenExpiredException.class);
   }
 }
