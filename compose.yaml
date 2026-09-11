@@ -32,6 +32,13 @@ services:
       POSTGRES_USER: auth
       POSTGRES_PASSWORD: auth
     volumes:
+      # Named, not anonymous: an anonymous volume is tied to one container and
+      # gets silently orphaned by anything that recreates the container under
+      # a new identity (a service rename is exactly what did this on
+      # 2026-09-10 -- the old data was still on disk, just disconnected). A
+      # named volume is addressed by this name regardless of container
+      # churn, and `docker compose down` (without -v) never removes it.
+      - pgdata:/var/lib/postgresql/data
       - ./init-db:/docker-entrypoint-initdb.d:ro
     ports:
       - "5432:5432"
@@ -88,3 +95,6 @@ services:
         condition: service_started
       postgres:
         condition: service_healthy
+
+volumes:
+  pgdata:
