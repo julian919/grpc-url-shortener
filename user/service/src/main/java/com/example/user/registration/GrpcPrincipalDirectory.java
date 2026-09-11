@@ -3,17 +3,17 @@ package com.example.user.registration;
 import com.example.auth.api.AuthServiceGrpc;
 import com.example.auth.api.CreatePrincipalRequest;
 import com.example.auth.api.CreatePrincipalResponse;
-import com.example.user.exception.RegistrationFailedException;
+import com.example.user.registration.exception.RegistrationFailedException;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 @Component
-class RegistrationImpl implements RegistrationInterface {
+public class GrpcPrincipalDirectory implements PrincipalDirectory {
 
   private final AuthServiceGrpc.AuthServiceBlockingStub authStub;
 
-  RegistrationImpl(@Qualifier("authenticated") AuthServiceGrpc.AuthServiceBlockingStub authStub) {
+  public GrpcPrincipalDirectory(@Qualifier("authenticated") AuthServiceGrpc.AuthServiceBlockingStub authStub) {
     this.authStub = authStub;
   }
 

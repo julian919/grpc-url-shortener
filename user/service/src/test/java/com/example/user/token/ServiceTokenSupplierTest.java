@@ -1,4 +1,4 @@
-package com.example.user.registration;
+package com.example.user.token;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -9,8 +9,6 @@ import static org.mockito.Mockito.when;
 import com.example.auth.api.AuthServiceGrpc;
 import com.example.auth.api.GetClientTokenRequest;
 import com.example.auth.api.OAuth2Token;
-import com.example.user.token.ServiceTokenSupplier;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;

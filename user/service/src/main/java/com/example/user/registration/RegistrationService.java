@@ -7,9 +7,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class RegistrationService {
 
-  private final RegistrationInterface principalDirectory;
+  private final PrincipalDirectory principalDirectory;
 
-  public RegistrationService(RegistrationInterface principalDirectory) {
+  public RegistrationService(PrincipalDirectory principalDirectory) {
     this.principalDirectory = principalDirectory;
   }
 
