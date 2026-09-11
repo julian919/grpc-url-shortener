@@ -69,6 +69,15 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
     </dependency>
+    <!--
+      StatusProto, which attaches a google.rpc.Status (carrying ErrorInfo details)
+      to a gRPC error's trailers; see config/AccessTokenExceptionHandler. It also
+      brings in proto-google-common-protos, where ErrorInfo itself lives.
+    -->
+    <dependency>
+      <groupId>io.grpc</groupId>
+      <artifactId>grpc-protobuf</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>

@@ -188,6 +188,41 @@
         ]
       }
     },
+    "/api/token/client": {
+      "post": {
+        "summary": "OAuth 2.0 client credentials grant (RFC 6749 section 4.4). Called by\nuser-service over gRPC, and over HTTP by the web client (publicweb) to get\na token for public-facing APIs. Credentials go in an\n\"Authorization: Basic base64(client_id:client_secret)\" header, the\nRFC-preferred form, or in the body.",
+        "description": "POST, not Cognixus's GET: RFC 6749 section 3.2 requires POST for token\nrequests. Section 4.4 also says this grant is for confidential clients\nonly, so the web client's secret belongs on its server (SSR/BFF). Browser\nJS can't keep a secret.",
+        "operationId": "AuthService_GetClientToken",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/apiOAuth2Token"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "Request for GetClientToken.\nModeled after Cognixus: client_id and client_secret can either be passed\nhere in the request body, OR supplied via gRPC metadata header:\n\"Authorization: Basic <base64(client_id:client_secret)>\".",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/apiGetClientTokenRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AuthService"
+        ]
+      }
+    },
     "/api/token/refresh": {
       "post": {
         "summary": "OAuth 2.1 refresh token rotation. The browser holds the refresh token and\ntrades it for a fresh access token here.",
@@ -250,6 +285,18 @@
         }
       },
       "description": "Previously a `oneof { ShortLink link; Error error; }`, treating a rejected\nURL as a normal successful response. Reverted: gRPC's own Status codes are\nthe more standard place for this (INVALID_ARGUMENT, FAILED_PRECONDITION),\nsame convention as ResolveShortLink's NOT_FOUND below -- see\nlessons/0004-rpc-kinds-deadlines-status-codes.html for why this changed\nafter it was already built and working."
+    },
+    "apiGetClientTokenRequest": {
+      "type": "object",
+      "properties": {
+        "clientId": {
+          "type": "string"
+        },
+        "clientSecret": {
+          "type": "string"
+        }
+      },
+      "description": "Request for GetClientToken.\nModeled after Cognixus: client_id and client_secret can either be passed\nhere in the request body, OR supplied via gRPC metadata header:\n\"Authorization: Basic <base64(client_id:client_secret)>\"."
     },
     "apiLinkStatus": {
       "type": "string",

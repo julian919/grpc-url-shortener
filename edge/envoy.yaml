@@ -36,6 +36,18 @@ static_resources:
                           route: { cluster: shortener_grpc, timeout: 15s }
                         - match: { prefix: "/auth.api.AuthService/" }
                           route: { cluster: auth_grpc, timeout: 15s }
+                          # RFC 6749 section 5.1: a response carrying tokens or
+                          # credentials MUST send Cache-Control: no-store and
+                          # Pragma: no-cache. Every HTTP response from AuthService
+                          # is login, refresh, or client-token material (or an
+                          # error about it), so the whole route gets it. auth-service
+                          # speaks gRPC and has no say over HTTP caching headers,
+                          # so the edge is the right place.
+                          response_headers_to_add:
+                            - header: { key: "Cache-Control", value: "no-store" }
+                              append_action: OVERWRITE_IF_EXISTS_OR_ADD
+                            - header: { key: "Pragma", value: "no-cache" }
+                              append_action: OVERWRITE_IF_EXISTS_OR_ADD
                         - match: { prefix: "/user.api.UserService/" }
                           route: { cluster: user_grpc, timeout: 15s }
 
