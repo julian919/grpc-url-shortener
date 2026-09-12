@@ -3,6 +3,7 @@ package com.example.shortener.link;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -12,6 +13,7 @@ import com.example.shortener.api.ListShortLinksResponse;
 import com.example.shortener.api.ShortLink;
 import com.example.shortener.exception.InvalidArgumentException;
 import com.example.shortener.link.entity.ShortLinkEntity;
+import com.example.shortener.link.exception.AuthorNotActiveException;
 import com.example.shortener.link.exception.UrlFlaggedException;
 import com.example.shortener.link.repository.ShortLinkRepository;
 import io.grpc.Status;
@@ -33,12 +35,16 @@ class LinkServiceTest {
 
   @Mock
   private ShortLinkRepository repository;
+  @Mock
+  private AuthorDirectory authorDirectory;
+
+  private static final String AUTHOR = "11111111-2222-3333-4444-555555555555";
 
   private LinkService linkService;
 
   @BeforeEach
   void setUp() {
-    linkService = new LinkService(repository, new ShortCodeGenerator());
+    linkService = new LinkService(repository, new ShortCodeGenerator(), authorDirectory);
   }
 
   // --- URL Validation tests ---------------------------------------------------------
@@ -66,10 +72,29 @@ class LinkServiceTest {
 
   @Test
   void createShortLink_blankUrl_throwsInvalidArgument() {
-    assertThatThrownBy(() -> linkService.createShortLink(""))
+    assertThatThrownBy(() -> linkService.createShortLink("", AUTHOR))
         .isInstanceOf(InvalidArgumentException.class);
 
+    verifyNoInteractions(repository, authorDirectory);
+  }
+
+  @Test
+  void createShortLink_authorNotActive_refusesBeforeGeneratingACode() {
+    doThrow(new AuthorNotActiveException("author is USER_STATUS_SUSPENDED"))
+        .when(authorDirectory).requireActiveAuthor(AUTHOR);
+
+    assertThatThrownBy(() -> linkService.createShortLink("https://example.com", AUTHOR))
+        .isInstanceOf(AuthorNotActiveException.class);
+
     verifyNoInteractions(repository);
+  }
+
+  @Test
+  void createShortLink_stampsTheAuthorFromTheCallerNotTheRequest() {
+    ShortLink link = linkService.createShortLink("https://anthropic.com", AUTHOR);
+
+    assertThat(link.getAuthorId()).isEqualTo(AUTHOR);
+    verify(authorDirectory).requireActiveAuthor(AUTHOR);
   }
 
   @ParameterizedTest
@@ -79,7 +104,7 @@ class LinkServiceTest {
       "http://spam.test/some/path",
   })
   void createShortLink_blockedHost_throwsUrlFlaggedAndStoresNothing(String url) {
-    assertThatThrownBy(() -> linkService.createShortLink(url))
+    assertThatThrownBy(() -> linkService.createShortLink(url, AUTHOR))
         .isInstanceOf(UrlFlaggedException.class)
         .hasMessageContaining("host is on the blocklist");
 
@@ -91,7 +116,7 @@ class LinkServiceTest {
   void createShortLink_blocklistMatchesHostNotSubstring() {
     // "malware.test.example.com" merely CONTAINS a blocked host; the check is on the parsed
     // host, so this one is allowed through.
-    ShortLink link = linkService.createShortLink("https://malware.test.example.com");
+    ShortLink link = linkService.createShortLink("https://malware.test.example.com", AUTHOR);
 
     assertThat(link.getStatus()).isEqualTo(LinkStatus.LINK_STATUS_ACTIVE);
     verify(repository).save(any(ShortLinkEntity.class));
@@ -99,7 +124,7 @@ class LinkServiceTest {
 
   @Test
   void createShortLink_cleanUrl_storesAndReturnsTheLink() {
-    ShortLink link = linkService.createShortLink("https://anthropic.com");
+    ShortLink link = linkService.createShortLink("https://anthropic.com", AUTHOR);
 
     assertThat(link.getLongUrl()).isEqualTo("https://anthropic.com");
     assertThat(link.getStatus()).isEqualTo(LinkStatus.LINK_STATUS_ACTIVE);

@@ -9,20 +9,74 @@ option java_outer_classname = "UserProto";
 // HTTP mapping for the edge proxy -- see edge/descriptor and edge/envoy.yaml.
 import "google/api/annotations.proto";
 
+// The requires_permissions MethodOptions extension, declared on the contract rather than
+// configured in this service's own source -- see auth/api/auth_api.proto.
+import "auth/api/auth_api.proto";
+
 message RegisterRequest {
-  string email = 1;
-  string password = 2;
+  string email      = 1;
+  string password   = 2;
+  string first_name = 3;
+  string last_name  = 4;
 }
 
 message RegisterResponse {
   string principal_id = 1;
 }
 
+// The user profile this service owns. Credentials live in auth-service and are never
+// mirrored here -- this row holds only who someone is, not how they prove it.
+message User {
+  // This service's own id. `principal_id` is the identity auth-service minted -- a reference,
+  // not a foreign key, since it lives in another service's database. Callers name a user by
+  // principal_id, because that is what a JWT's `sub` carries.
+  string     id           = 7;
+  string     principal_id = 1;
+  string     first_name   = 2;
+  string     last_name    = 3;
+  UserStatus status       = 4;
+  int64      created_at   = 5;  // epoch millis
+  int64      updated_at   = 6;
+}
+
+message GetUserRequest {
+  // The identity, not this service's own user id: callers know a user by what a JWT's `sub`
+  // carries, which is the principal id.
+  string principal_id = 1;
+}
+
+message GetUserResponse {
+  User user = 1;
+}
+
+enum UserStatus {
+  USER_STATUS_UNSPECIFIED = 0;
+  USER_STATUS_ACTIVE      = 1;
+  USER_STATUS_SUSPENDED   = 2;
+  USER_STATUS_DEACTIVATED = 3;
+}
+
 service UserService {
   rpc Register(RegisterRequest) returns (RegisterResponse) {
+    // Registration is not anonymous: a caller must present a CLIENT token proving it is a
+    // known front end. That is what stops an open signup endpoint from being scripted by
+    // anyone who can reach the edge. The webapp holds REGISTER through the WEB_CLIENT role.
+    option (auth.api.requires_permissions).permissions = "REGISTER";
+
     option (google.api.http) = {
       post: "/api/register"
       body: "*"
+    };
+  }
+
+  // Service-to-service read. shortener-service calls this before accepting a write, to check the
+  // author is still in good standing -- a JWT stays valid for its full lifetime after a user is
+  // suspended, so the token alone cannot answer that.
+  rpc GetUser(GetUserRequest) returns (GetUserResponse) {
+    option (auth.api.requires_permissions).permissions = "GET_USER";
+
+    option (google.api.http) = {
+      get: "/api/users/{principal_id}"
     };
   }
 }

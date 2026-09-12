@@ -6,3 +6,5 @@ spring:
       channel:
         auth:
           target: "static://auth-service:9092"
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/userdb}

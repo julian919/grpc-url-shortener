@@ -38,6 +38,10 @@ public class PrincipalEntity {
   @Column(name = "secret_hash", nullable = false)
   private String secretHash;
 
+  @Enumerated(EnumType.STRING)
+  @Column(name = "status", nullable = false, length = 16)
+  private PrincipalStatusEnum status = PrincipalStatusEnum.ACTIVE;
+
   @JdbcTypeCode(SqlTypes.ARRAY)
   @Column(name = "roles", columnDefinition = "text[]")
   private Set<String> roles = new HashSet<>();
@@ -68,6 +72,7 @@ public class PrincipalEntity {
     this.secretHash = secretHash;
     this.roles = new HashSet<>(roles);
     this.type = type;
+    this.status = PrincipalStatusEnum.ACTIVE;
   }
 
   public UUID getId() {
@@ -92,5 +97,19 @@ public class PrincipalEntity {
 
   public Instant getCreatedAt() {
     return createdAt;
+  }
+
+  public PrincipalStatusEnum getStatus() {
+    return status;
+  }
+
+  /** True only for ACTIVE. Anything else may not be issued new tokens. */
+  public boolean isActive() {
+    return status == PrincipalStatusEnum.ACTIVE;
+  }
+
+  /** Suspend, deactivate, or restore. See db/README.md for the operational recipe. */
+  public void changeStatus(PrincipalStatusEnum status) {
+    this.status = status;
   }
 }

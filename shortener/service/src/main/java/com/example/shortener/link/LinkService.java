@@ -37,19 +37,31 @@ public class LinkService {
 
   private final ShortLinkRepository repository;
   private final ShortCodeGenerator generator;
+  private final AuthorDirectory authorDirectory;
 
-  public LinkService(ShortLinkRepository repository, ShortCodeGenerator generator) {
+  public LinkService(
+      ShortLinkRepository repository, ShortCodeGenerator generator, AuthorDirectory authorDirectory) {
     this.repository = repository;
     this.generator = generator;
+    this.authorDirectory = authorDirectory;
   }
 
-  public ShortLink createShortLink(String longUrl) {
+  /**
+   * @param authorId the caller's principal, taken from the verified JWT's {@code sub} by the gRPC
+   *     adapter -- never from the request body, which a client controls
+   */
+  public ShortLink createShortLink(String longUrl, String authorId) {
     if (!isShortenableUrl(longUrl)) {
       throw new InvalidArgumentException(
           "long_url must be an absolute http or https URL with a host, e.g. https://example.com (got: "
               + longUrl
               + ")");
     }
+
+    // Checked BEFORE a short code is generated: a suspended author should cost us nothing. The
+    // token alone cannot answer this -- it stays valid for its full lifetime after a suspension --
+    // so this is a live lookup against user-service.
+    authorDirectory.requireActiveAuthor(authorId);
 
     long now = System.currentTimeMillis();
     ShortLink link =
@@ -59,6 +71,7 @@ public class LinkService {
             .setCreatedAt(now)
             .setUpdatedAt(now)
             .setStatus(LinkStatus.LINK_STATUS_ACTIVE)
+            .setAuthorId(authorId)
             .build();
 
     auditOrThrow(link);

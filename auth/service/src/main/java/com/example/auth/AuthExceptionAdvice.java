@@ -2,6 +2,7 @@ package com.example.auth;
 
 import com.example.auth.principal.exception.InvalidCredentialsException;
 import com.example.auth.principal.exception.LoginAlreadyRegisteredException;
+import com.example.auth.principal.exception.PrincipalNotActiveException;
 import com.example.auth.token.exception.RefreshTokenExpiredException;
 import com.example.auth.token.exception.RefreshTokenInvalidException;
 import com.example.auth.token.exception.RefreshTokenMissingException;
@@ -32,6 +33,27 @@ public class AuthExceptionAdvice {
   @GrpcExceptionHandler
   public Status handleInvalidCredentials(InvalidCredentialsException e) {
     return Status.UNAUTHENTICATED.withDescription(e.getMessage());
+  }
+
+  /**
+   * PERMISSION_DENIED, not UNAUTHENTICATED: the caller proved who they are, so re-authenticating
+   * would not help. The reason is machine-readable so a client can say "your account is suspended"
+   * instead of "login failed" -- the same AIP-193 shape the refresh failures use.
+   */
+  @GrpcExceptionHandler
+  public StatusRuntimeException handlePrincipalNotActive(PrincipalNotActiveException e) {
+    com.google.rpc.Status status =
+        com.google.rpc.Status.newBuilder()
+            .setCode(Code.PERMISSION_DENIED.getNumber())
+            .setMessage(e.getMessage())
+            .addDetails(
+                Any.pack(
+                    ErrorInfo.newBuilder()
+                        .setReason("PRINCIPAL_" + e.getStatus().name())
+                        .setDomain(ERROR_DOMAIN)
+                        .build()))
+            .build();
+    return StatusProto.toStatusRuntimeException(status);
   }
 
   @GrpcExceptionHandler

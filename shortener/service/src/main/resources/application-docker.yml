@@ -6,3 +6,10 @@
 spring:
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/shortenerdb}
+  grpc:
+    client:
+      channel:
+        auth:
+          target: "static://auth-service:9092"
+        user:
+          target: "static://user-service:9093"

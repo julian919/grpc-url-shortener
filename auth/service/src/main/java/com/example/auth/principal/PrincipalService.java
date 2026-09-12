@@ -5,6 +5,7 @@ import com.example.auth.principal.entity.LoginEntity;
 import com.example.auth.principal.entity.PrincipalEntity;
 import com.example.auth.principal.entity.PrincipalTypeEnum;
 import com.example.auth.principal.exception.InvalidCredentialsException;
+import com.example.auth.principal.exception.PrincipalNotActiveException;
 import com.example.auth.principal.exception.LoginAlreadyRegisteredException;
 import com.example.auth.principal.repository.LoginRepository;
 import com.example.auth.principal.repository.PrincipalRepository;
@@ -45,6 +46,16 @@ public class PrincipalService {
     return principal;
   }
 
+  /**
+   * The single place a principal's right to act is checked. Called from every path that mints a
+   * token, so a suspended identity cannot obtain new credentials by any grant.
+   */
+  static void requireActive(PrincipalEntity principal) {
+    if (!principal.isActive()) {
+      throw new PrincipalNotActiveException(principal.getStatus());
+    }
+  }
+
   @Transactional(readOnly = true)
   public PrincipalEntity authenticate(String email, String plaintextPassword) {
     LoginEntity login = loginRepository
@@ -55,6 +66,9 @@ public class PrincipalService {
     if (!passwordEncoder.matches(plaintextPassword, principal.getSecretHash())) {
       throw new InvalidCredentialsException();
     }
+    // AFTER the password check, deliberately: answering "you are suspended" to a wrong password
+    // would confirm the account exists to someone who has not proven they own it.
+    requireActive(principal);
 
     return principal;
   }
@@ -73,6 +87,7 @@ public class PrincipalService {
         || !passwordEncoder.matches(clientSecret, principal.getSecretHash())) {
       throw new InvalidCredentialsException("Invalid client credentials");
     }
+    requireActive(principal);
 
     return principal;
   }

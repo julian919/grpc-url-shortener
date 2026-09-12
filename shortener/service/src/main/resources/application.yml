@@ -4,6 +4,14 @@ spring:
   grpc:
     server:
       port: 9090
+    client:
+      channel:
+        # auth: to fetch shortener's own service token (auth-client's auto-configuration).
+        # user: the service it calls, carrying that token.
+        auth:
+          target: "static://localhost:9092"
+        user:
+          target: "static://localhost:9093"
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/shortenerdb}
     username: ${SPRING_DATASOURCE_USERNAME:auth}
@@ -35,3 +43,10 @@ management:
     web:
       exposure:
         include: health,info
+
+# Credential shortener presents to auth-service to obtain its own service token. No default:
+# an environment that forgot it should fail at startup, not at the first write.
+app:
+  auth-client:
+    client-id: shortener-service
+    client-secret: ${SHORTENER_SERVICE_AUTH_SECRET}

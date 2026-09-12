@@ -57,6 +57,15 @@ Legend: 🟢 Foundations · 🔵 Core · 🟣 Hard · ⚫ Stretch
       `<Suspense>` boundary — reading cookies outside one is a build error. Keep it out of the
       layout's top level so it doesn't hold up the whole segment._
 
+- [ ] **B5 · Registration.** `features/auth/actions/register.ts` → `POST /api/register` with
+      `{email, password, firstName, lastName}`, then log the new user straight in.
+      _Context: registration is NOT anonymous — `Register` is gated on the `REGISTER` permission,
+      so the call needs `auth: 'client'` (the `publicweb` token), not a user token. This is the
+      clearest case yet for why this app is a BFF: the browser cannot make this call itself,
+      because it would need the client secret to get that token. A Server Action can._
+      _Done when:_ signing up from the browser works, and `grep -r publicweb .next/static` is
+      still empty.
+
 ## Track C — Create a link 🔵
 
 - [ ] **C1 · Repository write path.** Add `createLink(longUrl, accessToken)` to

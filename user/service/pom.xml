@@ -22,15 +22,24 @@
     </dependency>
 
     <!-- The schema of a domain it CALLS at runtime. -->
+    <!-- Brings auth-api transitively, plus the ServiceTokenSupplier + auto-configuration that
+         every service calling auth needs. -->
     <dependency>
       <groupId>com.example</groupId>
-      <artifactId>auth-api</artifactId>
+      <artifactId>auth-client</artifactId>
     </dependency>
 
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-grpc-client</artifactId>
     </dependency>
+    <!-- Inbound token verification + proto-declared permission enforcement, contributed by
+         auto-configuration. Replaces the three security classes each service used to carry. -->
+    <dependency>
+      <groupId>com.example</groupId>
+      <artifactId>commons-security</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-grpc-server</artifactId>
@@ -38,6 +47,33 @@
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
+    </dependency>
+
+    <!-- user-service now VERIFIES inbound tokens too, not just sends them: Register is gated
+         on REGISTER. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+    </dependency>
+
+    <!-- user-service owns its own store now: the profile (name, status) lives here, while
+         credentials stay in auth-service. Separate database, not a shared schema. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-flyway</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.flywaydb</groupId>
+      <artifactId>flyway-database-postgresql</artifactId>
     </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>

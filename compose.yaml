@@ -73,10 +73,16 @@ services:
       # longer receives this variable at all -- it only ever stores the bcrypt hash, so keeping
       # the plaintext out of its environment is one less place a compromise would yield it.
       USER_SERVICE_AUTH_SECRET: ${USER_SERVICE_AUTH_SECRET:-user-service-secret}
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/userdb
+      SPRING_DATASOURCE_USERNAME: auth
+      SPRING_DATASOURCE_PASSWORD: auth
     ports:
       - "9093:9093"
     depends_on:
-      - auth-service
+      auth-service:
+        condition: service_started
+      postgres:
+        condition: service_healthy
 
   shortener-service:
     build:
@@ -84,6 +90,9 @@ services:
       dockerfile: shortener/service/Dockerfile
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      # shortener now makes an authenticated outbound call (user-service GetUser), so it needs
+      # its own client credential. Must match auth's db/dev/R__init_auth.sql.
+      SHORTENER_SERVICE_AUTH_SECRET: ${SHORTENER_SERVICE_AUTH_SECRET:-shortener-service-secret}
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/shortenerdb
       SPRING_DATASOURCE_USERNAME: auth
       SPRING_DATASOURCE_PASSWORD: auth
@@ -91,6 +100,8 @@ services:
       - "9090:9090"
     depends_on:
       auth-service:
+        condition: service_started
+      user-service:
         condition: service_started
       postgres:
         condition: service_healthy

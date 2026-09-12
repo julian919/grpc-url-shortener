@@ -21,6 +21,13 @@
       <artifactId>auth-api</artifactId>
     </dependency>
 
+    <!-- Inbound token verification + proto-declared permission enforcement, contributed by
+         auto-configuration. Replaces the three security classes each service used to carry. -->
+    <dependency>
+      <groupId>com.example</groupId>
+      <artifactId>commons-security</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-grpc-server</artifactId>

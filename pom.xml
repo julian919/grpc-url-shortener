@@ -35,12 +35,15 @@
     <module>shortener/api</module>
     <module>shortener/service</module>
     <module>auth/api</module>
+    <module>auth/client</module>
     <module>auth/service</module>
     <module>user/api</module>
     <module>user/service</module>
 
-    <!-- Not a domain: the combined proto descriptor the edge proxy transcodes
-         from. See edge/descriptor/pom.xml. -->
+    <!-- Not domains. commons/* holds shared TECHNICAL concerns, one focused module per concern
+         (tracing and logging would be siblings of security); edge/descriptor builds the combined
+         proto descriptor the edge proxy transcodes from. -->
+    <module>commons/security</module>
     <module>edge/descriptor</module>
   </modules>
 
@@ -76,7 +79,17 @@
       </dependency>
       <dependency>
         <groupId>com.example</groupId>
+        <artifactId>auth-client</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.example</groupId>
         <artifactId>user-api</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.example</groupId>
+        <artifactId>commons-security</artifactId>
         <version>${project.version}</version>
       </dependency>
     </dependencies>

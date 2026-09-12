@@ -2,6 +2,7 @@ package com.example.auth.token;
 
 import com.example.auth.api.OAuth2Token;
 import com.example.auth.principal.entity.PrincipalEntity;
+import com.example.auth.principal.exception.PrincipalNotActiveException;
 import com.example.auth.token.entity.RefreshTokenEntity;
 import com.example.auth.token.exception.RefreshTokenExpiredException;
 import com.example.auth.token.exception.RefreshTokenInvalidException;
@@ -80,6 +81,16 @@ public class RefreshTokenService {
 
     if (entity.isExpired()) {
       throw new RefreshTokenExpiredException();
+    }
+
+    // The refresh grant is the loophole that would otherwise let a suspended principal keep
+    // itself alive indefinitely: it presents a token minted while it was still ACTIVE. Check the
+    // CURRENT status, and burn every outstanding refresh token on the way out so re-presenting a
+    // sibling token gets nowhere either.
+    if (!principal.isActive()) {
+      log.warn("Refresh refused for non-ACTIVE principal {} ({})", principal.getId(), principal.getStatus());
+      refreshTokenRepository.revokeAllForPrincipal(principal);
+      throw new PrincipalNotActiveException(principal.getStatus());
     }
 
     // Mark previous token as revoked

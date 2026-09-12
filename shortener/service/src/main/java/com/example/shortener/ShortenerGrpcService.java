@@ -12,7 +12,11 @@ import com.example.shortener.api.UpdateShortLinkRequest;
 import com.example.shortener.api.UpdateShortLinkResponse;
 import com.example.shortener.api.ShortenerServiceGrpc;
 import com.example.shortener.link.LinkService;
+import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 
 /**
@@ -32,10 +36,24 @@ public class ShortenerGrpcService extends ShortenerServiceGrpc.ShortenerServiceI
     this.linkService = linkService;
   }
 
+  /**
+   * The caller's identity, straight off the verified JWT. Spring Security's resource-server filter
+   * has already populated the context by the time any rpc method runs, so this is the gRPC
+   * equivalent of Cognixus reading {@code ctx.Value("principalId")} -- no interceptor of our own
+   * needed, because the framework put it there.
+   */
+  private static String callerPrincipalId() {
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    if (authentication == null || !(authentication.getPrincipal() instanceof Jwt jwt)) {
+      throw Status.UNAUTHENTICATED.withDescription("no authenticated caller").asRuntimeException();
+    }
+    return jwt.getSubject();
+  }
+
   @Override
   public void createShortLink(
       CreateShortLinkRequest request, StreamObserver<CreateShortLinkResponse> responseObserver) {
-    ShortLink link = linkService.createShortLink(request.getLongUrl());
+    ShortLink link = linkService.createShortLink(request.getLongUrl(), callerPrincipalId());
     responseObserver.onNext(CreateShortLinkResponse.newBuilder().setShortLink(link).build());
     responseObserver.onCompleted();
   }

@@ -27,8 +27,26 @@
       <artifactId>auth-api</artifactId>
     </dependency>
 
-    <!-- Server only. The grpc-client starter went with linkaudit: shortener now calls no other
-         service over gRPC, and verifies JWTs locally against auth's bundled public key. -->
+    <!-- Outbound: how shortener authenticates ITSELF when calling user-service. Brings
+         auth-api transitively along with the ServiceTokenSupplier. -->
+    <dependency>
+      <groupId>com.example</groupId>
+      <artifactId>auth-client</artifactId>
+    </dependency>
+
+    <!-- The contract of the service it calls at runtime. -->
+    <dependency>
+      <groupId>com.example</groupId>
+      <artifactId>user-api</artifactId>
+    </dependency>
+
+    <!-- Inbound token verification + proto-declared permission enforcement, contributed by
+         auto-configuration. Replaces the three security classes each service used to carry. -->
+    <dependency>
+      <groupId>com.example</groupId>
+      <artifactId>commons-security</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-grpc-server</artifactId>

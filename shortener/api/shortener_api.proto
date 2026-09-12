@@ -66,6 +66,10 @@ message ShortLink {
   // it is int64 epoch millis here to match created_at above, since having two
   // timestamp representations in one message is worse than not matching the AIP.
   int64      updated_at = 5;
+
+  // The principal that created this link, taken from the caller's JWT `sub` -- never from the
+  // request body, which a client could forge. Output only.
+  string     author_id  = 6;
 }
 
 // Request and response are always their own message type, even when they wrap

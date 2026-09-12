@@ -9,6 +9,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "short_links")
@@ -27,6 +28,10 @@ public class ShortLinkEntity {
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
 
+  /** Nullable: links created before author tracking existed have none. */
+  @Column(name = "author_id")
+  private UUID authorId;
+
   @Enumerated(EnumType.STRING)
   @Column(name = "status", nullable = false, length = 32)
   private LinkStatus status;
@@ -36,7 +41,9 @@ public class ShortLinkEntity {
   }
 
   public ShortLinkEntity(
-      String shortCode, String longUrl, Instant createdAt, Instant updatedAt, LinkStatus status) {
+      String shortCode, String longUrl, Instant createdAt, Instant updatedAt, LinkStatus status,
+      UUID authorId) {
+    this.authorId = authorId;
     this.shortCode = shortCode;
     this.longUrl = longUrl;
     this.createdAt = createdAt;
@@ -49,8 +56,9 @@ public class ShortLinkEntity {
         proto.getCreatedAt() > 0 ? Instant.ofEpochMilli(proto.getCreatedAt()) : Instant.now();
     Instant updated =
         proto.getUpdatedAt() > 0 ? Instant.ofEpochMilli(proto.getUpdatedAt()) : created;
+    UUID author = proto.getAuthorId().isEmpty() ? null : UUID.fromString(proto.getAuthorId());
     return new ShortLinkEntity(
-        proto.getShortCode(), proto.getLongUrl(), created, updated, proto.getStatus());
+        proto.getShortCode(), proto.getLongUrl(), created, updated, proto.getStatus(), author);
   }
 
   public ShortLink toProto() {
@@ -60,6 +68,7 @@ public class ShortLinkEntity {
         .setCreatedAt(createdAt.toEpochMilli())
         .setUpdatedAt(updatedAt.toEpochMilli())
         .setStatus(status)
+        .setAuthorId(authorId == null ? "" : authorId.toString())
         .build();
   }
 
@@ -81,6 +90,10 @@ public class ShortLinkEntity {
 
   public LinkStatus getStatus() {
     return status;
+  }
+
+  public UUID getAuthorId() {
+    return authorId;
   }
 
   /**

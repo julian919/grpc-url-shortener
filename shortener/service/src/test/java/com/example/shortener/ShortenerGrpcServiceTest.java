@@ -15,13 +15,19 @@ import com.example.shortener.api.ListShortLinksResponse;
 import com.example.shortener.api.ShortLink;
 import com.example.shortener.link.LinkService;
 import io.grpc.stub.StreamObserver;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
 @ExtendWith(MockitoExtension.class)
 class ShortenerGrpcServiceTest {
@@ -37,9 +43,23 @@ class ShortenerGrpcServiceTest {
 
   private ShortenerGrpcService service;
 
+  /** The principal id the adapter should read off the token's `sub` claim. */
+  private static final String CALLER = "11111111-2222-3333-4444-555555555555";
+
   @BeforeEach
   void setUp() {
     service = new ShortenerGrpcService(linkService);
+
+    // Spring Security's resource-server filter populates this before any rpc method runs. The
+    // adapter reads `sub` from it rather than trusting anything in the request body.
+    Jwt jwt = new Jwt("token-value", Instant.now(), Instant.now().plusSeconds(900),
+        Map.of("alg", "RS256"), Map.of("sub", CALLER));
+    SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt));
+  }
+
+  @AfterEach
+  void clearContext() {
+    SecurityContextHolder.clearContext();
   }
 
   @Test
@@ -55,7 +75,7 @@ class ShortenerGrpcServiceTest {
             .setStatus(LinkStatus.LINK_STATUS_ACTIVE)
             .build();
 
-    when(linkService.createShortLink("https://anthropic.com")).thenReturn(expectedLink);
+    when(linkService.createShortLink("https://anthropic.com", CALLER)).thenReturn(expectedLink);
 
     service.createShortLink(request, createObserver);
 

@@ -19,6 +19,14 @@
   </properties>
 
   <dependencies>
+
+    <!-- Needed for javac: this schema references auth.api's MethodOptions extension
+         (requires_permissions on Register). Same reason shortener-api depends on it. -->
+    <dependency>
+      <groupId>com.example</groupId>
+      <artifactId>auth-api</artifactId>
+    </dependency>
+
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>

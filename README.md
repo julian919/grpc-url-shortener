@@ -125,10 +125,16 @@ shortener/
   service/                        Spring Boot app, gRPC on 9090
 auth/
   api/auth_api.proto              package auth.api
+  client/                         how OTHER services authenticate TO auth
   service/                        Spring Boot app, gRPC on 9092
 user/
   api/user_api.proto              package user.api
   service/                        Spring Boot app, gRPC on 9093
+
+commons/                          not a domain -- shared TECHNICAL concerns
+  security/                       inbound token verification + permission enforcement
+edge/
+  descriptor/                     the combined proto descriptor Envoy transcodes from
 ```
 
 Laid out by **domain**, the way the Cognixus monorepo is: each domain owns an `api/`
@@ -186,6 +192,52 @@ runtime:   user/service       ──calls────▶  auth/service
 
 Not a mistake, and worth rehearsing: a **schema** dependency is about shared vocabulary,
 a **runtime** dependency is about who calls whom.
+
+### `auth/client` vs `commons/security` — the two shared modules
+
+Both are "shared code about auth", which makes them easy to confuse. They differ on two axes.
+
+**Axis 1 — direction.** This is the one that decides what a module contains.
+
+|                 | `auth/client`                          | `commons/security`                          |
+| --------------- | -------------------------------------- | ------------------------------------------- |
+| **Direction**   | **outbound**                           | **inbound**                                 |
+| Question        | "how do I prove who I am when I call?" | "how do I check a token sent to me?"        |
+| Contents        | `ServiceTokenSupplier`, `AuthClientProperties`, auto-config | `GrpcSecurityAutoConfiguration`, `ProtoPermissionAuthorizationManager`, `AccessTokenExceptionHandler` |
+| Makes you a…    | **client** of auth-service             | **resource server**                         |
+| Needs           | `spring-boot-starter-grpc-client`      | `spring-boot-starter-oauth2-resource-server` |
+
+A service can need one, both, or neither:
+
+| Service       | `auth/client` | `commons/security` | Why                                            |
+| ------------- | ------------- | ------------------ | ---------------------------------------------- |
+| **auth**      | no            | yes                | it *issues* tokens; it never needs to obtain one |
+| **user**      | yes           | yes                | verifies `REGISTER`/`GET_USER` inbound, calls auth outbound |
+| **shortener** | yes           | yes                | verifies `CREATE_SHORT_URL` etc., calls user-service outbound |
+
+**Axis 2 — who owns it.** This is the one that decides *where the folder lives*.
+
+`auth/client` sits beside `auth/api` and `auth/service` because it belongs to the **auth domain** —
+it is auth's published client SDK, "here is how you talk to me", versioned with auth's contract.
+Change `GetClientToken` and this is what gets updated. Cognixus has the same module, with a README
+saying exactly that.
+
+`commons/security` is **not a domain**. It is a capability every gRPC service needs regardless of
+what that service does. The analogy that makes it stick: `auth/client` is like `stripe-java` — a
+client for one specific service; `commons/security` is like `spring-boot-starter-security` —
+infrastructure.
+
+**Why `commons/<concern>` and not one flat `commons`.** Cognixus's `commons/` is two dozen
+independently buildable modules (`server`, `tracing`, `logger`, `kafka`, `storage`…), not one jar.
+That matters here: `commons/security` depends on `auth-api`, because
+`ProtoPermissionAuthorizationManager` reads `auth.api.requires_permissions` off each method's
+options. Flat, a service wanting only tracing would inherit `auth-api` for nothing. As siblings,
+each concern carries only its own dependencies — so a tracing interceptor becomes
+`commons/tracing`, not another file in this jar.
+
+**The rule that keeps `commons/` from rotting:** technical concerns only — transport, tracing,
+logging, security wiring. Nothing that knows what a link or a principal *is*. `commons` is a name
+that invites dumping; this rule plus the per-concern split is what stops it.
 
 ### Package matches path
 

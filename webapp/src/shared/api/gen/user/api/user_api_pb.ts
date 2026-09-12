@@ -2,16 +2,17 @@
 // @generated from file user/api/user_api.proto (package user.api, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_google_api_annotations } from "../../google/api/annotations_pb";
+import { file_auth_api_auth_api } from "../../auth/api/auth_api_pb";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file user/api/user_api.proto.
  */
 export const file_user_api_user_api: GenFile = /*@__PURE__*/
-  fileDesc("Chd1c2VyL2FwaS91c2VyX2FwaS5wcm90bxIIdXNlci5hcGkiMgoPUmVnaXN0ZXJSZXF1ZXN0Eg0KBWVtYWlsGAEgASgJEhAKCHBhc3N3b3JkGAIgASgJIigKEFJlZ2lzdGVyUmVzcG9uc2USFAoMcHJpbmNpcGFsX2lkGAEgASgJMmoKC1VzZXJTZXJ2aWNlElsKCFJlZ2lzdGVyEhkudXNlci5hcGkuUmVnaXN0ZXJSZXF1ZXN0GhoudXNlci5hcGkuUmVnaXN0ZXJSZXNwb25zZSIYgtPkkwISOgEqIg0vYXBpL3JlZ2lzdGVyQiMKFGNvbS5leGFtcGxlLnVzZXIuYXBpQglVc2VyUHJvdG9QAWIGcHJvdG8z", [file_google_api_annotations]);
+  fileDesc("Chd1c2VyL2FwaS91c2VyX2FwaS5wcm90bxIIdXNlci5hcGkiWQoPUmVnaXN0ZXJSZXF1ZXN0Eg0KBWVtYWlsGAEgASgJEhAKCHBhc3N3b3JkGAIgASgJEhIKCmZpcnN0X25hbWUYAyABKAkSEQoJbGFzdF9uYW1lGAQgASgJIigKEFJlZ2lzdGVyUmVzcG9uc2USFAoMcHJpbmNpcGFsX2lkGAEgASgJIp0BCgRVc2VyEgoKAmlkGAcgASgJEhQKDHByaW5jaXBhbF9pZBgBIAEoCRISCgpmaXJzdF9uYW1lGAIgASgJEhEKCWxhc3RfbmFtZRgDIAEoCRIkCgZzdGF0dXMYBCABKA4yFC51c2VyLmFwaS5Vc2VyU3RhdHVzEhIKCmNyZWF0ZWRfYXQYBSABKAMSEgoKdXBkYXRlZF9hdBgGIAEoAyImCg5HZXRVc2VyUmVxdWVzdBIUCgxwcmluY2lwYWxfaWQYASABKAkiLwoPR2V0VXNlclJlc3BvbnNlEhwKBHVzZXIYASABKAsyDi51c2VyLmFwaS5Vc2VyKnkKClVzZXJTdGF0dXMSGwoXVVNFUl9TVEFUVVNfVU5TUEVDSUZJRUQQABIWChJVU0VSX1NUQVRVU19BQ1RJVkUQARIZChVVU0VSX1NUQVRVU19TVVNQRU5ERUQQAhIbChdVU0VSX1NUQVRVU19ERUFDVElWQVRFRBADMu0BCgtVc2VyU2VydmljZRJrCghSZWdpc3RlchIZLnVzZXIuYXBpLlJlZ2lzdGVyUmVxdWVzdBoaLnVzZXIuYXBpLlJlZ2lzdGVyUmVzcG9uc2UiKILT5JMCEjoBKiINL2FwaS9yZWdpc3RlcvL///8PCgoIUkVHSVNURVIScQoHR2V0VXNlchIYLnVzZXIuYXBpLkdldFVzZXJSZXF1ZXN0GhkudXNlci5hcGkuR2V0VXNlclJlc3BvbnNlIjGC0+STAhsSGS9hcGkvdXNlcnMve3ByaW5jaXBhbF9pZH3y////DwoKCEdFVF9VU0VSQiMKFGNvbS5leGFtcGxlLnVzZXIuYXBpQglVc2VyUHJvdG9QAWIGcHJvdG8z", [file_google_api_annotations, file_auth_api_auth_api]);
 
 /**
  * @generated from message user.api.RegisterRequest
@@ -26,6 +27,16 @@ export type RegisterRequest = Message<"user.api.RegisterRequest"> & {
    * @generated from field: string password = 2;
    */
   password: string;
+
+  /**
+   * @generated from field: string first_name = 3;
+   */
+  firstName: string;
+
+  /**
+   * @generated from field: string last_name = 4;
+   */
+  lastName: string;
 };
 
 /**
@@ -53,6 +64,130 @@ export const RegisterResponseSchema: GenMessage<RegisterResponse> = /*@__PURE__*
   messageDesc(file_user_api_user_api, 1);
 
 /**
+ * The user profile this service owns. Credentials live in auth-service and are never
+ * mirrored here -- this row holds only who someone is, not how they prove it.
+ *
+ * @generated from message user.api.User
+ */
+export type User = Message<"user.api.User"> & {
+  /**
+   * This service's own id. `principal_id` is the identity auth-service minted -- a reference,
+   * not a foreign key, since it lives in another service's database. Callers name a user by
+   * principal_id, because that is what a JWT's `sub` carries.
+   *
+   * @generated from field: string id = 7;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string principal_id = 1;
+   */
+  principalId: string;
+
+  /**
+   * @generated from field: string first_name = 2;
+   */
+  firstName: string;
+
+  /**
+   * @generated from field: string last_name = 3;
+   */
+  lastName: string;
+
+  /**
+   * @generated from field: user.api.UserStatus status = 4;
+   */
+  status: UserStatus;
+
+  /**
+   * epoch millis
+   *
+   * @generated from field: int64 created_at = 5;
+   */
+  createdAt: bigint;
+
+  /**
+   * @generated from field: int64 updated_at = 6;
+   */
+  updatedAt: bigint;
+};
+
+/**
+ * Describes the message user.api.User.
+ * Use `create(UserSchema)` to create a new message.
+ */
+export const UserSchema: GenMessage<User> = /*@__PURE__*/
+  messageDesc(file_user_api_user_api, 2);
+
+/**
+ * @generated from message user.api.GetUserRequest
+ */
+export type GetUserRequest = Message<"user.api.GetUserRequest"> & {
+  /**
+   * The identity, not this service's own user id: callers know a user by what a JWT's `sub`
+   * carries, which is the principal id.
+   *
+   * @generated from field: string principal_id = 1;
+   */
+  principalId: string;
+};
+
+/**
+ * Describes the message user.api.GetUserRequest.
+ * Use `create(GetUserRequestSchema)` to create a new message.
+ */
+export const GetUserRequestSchema: GenMessage<GetUserRequest> = /*@__PURE__*/
+  messageDesc(file_user_api_user_api, 3);
+
+/**
+ * @generated from message user.api.GetUserResponse
+ */
+export type GetUserResponse = Message<"user.api.GetUserResponse"> & {
+  /**
+   * @generated from field: user.api.User user = 1;
+   */
+  user?: User | undefined;
+};
+
+/**
+ * Describes the message user.api.GetUserResponse.
+ * Use `create(GetUserResponseSchema)` to create a new message.
+ */
+export const GetUserResponseSchema: GenMessage<GetUserResponse> = /*@__PURE__*/
+  messageDesc(file_user_api_user_api, 4);
+
+/**
+ * @generated from enum user.api.UserStatus
+ */
+export enum UserStatus {
+  /**
+   * @generated from enum value: USER_STATUS_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: USER_STATUS_ACTIVE = 1;
+   */
+  ACTIVE = 1,
+
+  /**
+   * @generated from enum value: USER_STATUS_SUSPENDED = 2;
+   */
+  SUSPENDED = 2,
+
+  /**
+   * @generated from enum value: USER_STATUS_DEACTIVATED = 3;
+   */
+  DEACTIVATED = 3,
+}
+
+/**
+ * Describes the enum user.api.UserStatus.
+ */
+export const UserStatusSchema: GenEnum<UserStatus> = /*@__PURE__*/
+  enumDesc(file_user_api_user_api, 0);
+
+/**
  * @generated from service user.api.UserService
  */
 export const UserService: GenService<{
@@ -63,6 +198,18 @@ export const UserService: GenService<{
     methodKind: "unary";
     input: typeof RegisterRequestSchema;
     output: typeof RegisterResponseSchema;
+  },
+  /**
+   * Service-to-service read. shortener-service calls this before accepting a write, to check the
+   * author is still in good standing -- a JWT stays valid for its full lifetime after a user is
+   * suspended, so the token alone cannot answer that.
+   *
+   * @generated from rpc user.api.UserService.GetUser
+   */
+  getUser: {
+    methodKind: "unary";
+    input: typeof GetUserRequestSchema;
+    output: typeof GetUserResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_user_api_user_api, 0);

@@ -9,6 +9,8 @@ import static org.mockito.Mockito.when;
 import com.example.auth.principal.entity.AuthProviderEnum;
 import com.example.auth.principal.entity.LoginEntity;
 import com.example.auth.principal.entity.PrincipalEntity;
+import com.example.auth.principal.exception.PrincipalNotActiveException;
+import com.example.auth.principal.entity.PrincipalStatusEnum;
 import com.example.auth.principal.entity.PrincipalTypeEnum;
 import com.example.auth.principal.exception.InvalidCredentialsException;
 import com.example.auth.principal.exception.LoginAlreadyRegisteredException;
@@ -148,5 +150,52 @@ class PrincipalServiceTest {
     PrincipalEntity result = service.authenticateService("user-service", "the-real-secret");
 
     assertThat(result).isSameAs(principal);
+  }
+
+  // --- principal status ---------------------------------------------------------------
+
+  @Test
+  void authenticate_suspendedPrincipal_throwsPrincipalNotActive() {
+    PrincipalEntity principal =
+        new PrincipalEntity(passwordEncoder.encode("the-real-secret"), Set.of("USER"));
+    principal.changeStatus(PrincipalStatusEnum.SUSPENDED);
+    LoginEntity login = new LoginEntity(principal, AuthProviderEnum.EMAIL, "a@example.com");
+    when(loginRepository.findByProviderAndAccountId(any(), any())).thenReturn(Optional.of(login));
+
+    assertThatThrownBy(() -> service.authenticate("a@example.com", "the-real-secret"))
+        .isInstanceOf(PrincipalNotActiveException.class);
+  }
+
+  @Test
+  void authenticate_wrongPasswordOnSuspendedPrincipal_stillReportsInvalidCredentials() {
+    // The status check runs AFTER the password check on purpose: telling someone who has not
+    // proven ownership that the account is suspended confirms the account exists.
+    PrincipalEntity principal =
+        new PrincipalEntity(passwordEncoder.encode("the-real-secret"), Set.of("USER"));
+    principal.changeStatus(PrincipalStatusEnum.SUSPENDED);
+    LoginEntity login = new LoginEntity(principal, AuthProviderEnum.EMAIL, "a@example.com");
+    when(loginRepository.findByProviderAndAccountId(any(), any())).thenReturn(Optional.of(login));
+
+    assertThatThrownBy(() -> service.authenticate("a@example.com", "wrong"))
+        .isInstanceOf(InvalidCredentialsException.class);
+  }
+
+  @Test
+  void authenticateService_deactivatedClient_throwsPrincipalNotActive() {
+    PrincipalEntity principal =
+        new PrincipalEntity(
+            passwordEncoder.encode("the-real-secret"), Set.of("USER_SERVICE"),
+            PrincipalTypeEnum.SERVICE);
+    principal.changeStatus(PrincipalStatusEnum.DEACTIVATED);
+    LoginEntity login = new LoginEntity(principal, AuthProviderEnum.CLIENT_ID, "user-service");
+    when(loginRepository.findByProviderAndAccountId(any(), any())).thenReturn(Optional.of(login));
+
+    assertThatThrownBy(() -> service.authenticateService("user-service", "the-real-secret"))
+        .isInstanceOf(PrincipalNotActiveException.class);
+  }
+
+  @Test
+  void newPrincipal_defaultsToActive() {
+    assertThat(new PrincipalEntity("hash", Set.of("USER")).isActive()).isTrue();
   }
 }

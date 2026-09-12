@@ -37,7 +37,8 @@ BEGIN
       -- capability is defined, and db/migration owns it. The last column is the direct-grant
       -- escape hatch and should stay empty here.
       ('user-service', 'user-service-secret',  ARRAY['USER_SERVICE'], ARRAY[]::text[]),
-      ('publicweb',    'publicweb-dev-secret', ARRAY['WEB_CLIENT'],   ARRAY[]::text[])
+      ('publicweb',    'publicweb-dev-secret', ARRAY['WEB_CLIENT'],        ARRAY[]::text[]),
+      ('shortener-service', 'shortener-service-secret', ARRAY['SHORTENER_SERVICE'], ARRAY[]::text[])
     ) AS t(client_id, secret, roles, permissions)
   LOOP
     IF EXISTS (SELECT 1 FROM logins

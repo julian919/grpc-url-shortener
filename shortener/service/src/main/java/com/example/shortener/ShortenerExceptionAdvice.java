@@ -1,6 +1,7 @@
 package com.example.shortener;
 
 import com.example.shortener.exception.InvalidArgumentException;
+import com.example.shortener.link.exception.AuthorNotActiveException;
 import com.example.shortener.link.exception.UrlFlaggedException;
 import io.grpc.Status;
 import org.springframework.grpc.server.advice.GrpcAdvice;
@@ -21,6 +22,12 @@ public class ShortenerExceptionAdvice {
   @GrpcExceptionHandler
   public Status handleInvalidArgument(InvalidArgumentException e) {
     return Status.INVALID_ARGUMENT.withDescription(e.getMessage());
+  }
+
+  /** PERMISSION_DENIED, not UNAUTHENTICATED: the token was fine, the author just may not act. */
+  @GrpcExceptionHandler
+  public Status handleAuthorNotActive(AuthorNotActiveException e) {
+    return Status.PERMISSION_DENIED.withDescription(e.getMessage());
   }
 
   @GrpcExceptionHandler
