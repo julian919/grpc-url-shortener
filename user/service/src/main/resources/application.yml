@@ -17,8 +17,10 @@ management:
 
 app:
   auth-client:
-    # Dev default, overridable in compose/prod -- same pattern bookstore-api uses for its own
-    # service client secret. Must match the bcrypt hash seeded for this client_id in
-    # auth-service's V3__seed_user_service_client.sql.
+    # No default on purpose: this must be the same secret that was registered for this client-id
+    # in auth-service's database, and an environment that forgot to set the env var should fail to
+    # start rather than fail later with "Invalid client credentials". Dev values come from
+    # compose.yaml and match auth's db/dev/R__init_auth.sql; other environments register the client
+    # out of band -- see auth/service/src/main/resources/db/README.md.
     client-id: user-service
-    client-secret: ${USER_SERVICE_AUTH_SECRET:user-service-secret}
+    client-secret: ${USER_SERVICE_AUTH_SECRET}

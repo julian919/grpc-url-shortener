@@ -49,7 +49,7 @@ class AuthGrpcServiceTest {
   void setUp() {
     authService = new AuthGrpcService(principalService, jwtService, refreshTokenService);
     userPrincipal = new PrincipalEntity("user-hash", Set.of("USER"));
-    servicePrincipal = new PrincipalEntity("service-hash", Set.of("SERVICE_INTERNAL"));
+    servicePrincipal = new PrincipalEntity("service-hash", Set.of("USER_SERVICE"));
   }
 
   @Test

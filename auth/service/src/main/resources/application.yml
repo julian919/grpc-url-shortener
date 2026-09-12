@@ -13,6 +13,11 @@ spring:
     enabled: true
     baseline-on-migrate: true
     baseline-version: 1
+    # Schema only. Stated explicitly rather than left to the default so that the prod-safe set is
+    # the thing written down: the dev seed lives in classpath:db/dev and is added ONLY by the
+    # "dev" profile (application-dev.yml). An environment that does not activate that profile
+    # cannot run it, which is the point -- see db/dev/R__init_auth.sql.
+    locations: classpath:db/migration
   jpa:
     hibernate:
       ddl-auto: validate

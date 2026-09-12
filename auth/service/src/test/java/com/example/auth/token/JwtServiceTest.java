@@ -98,10 +98,10 @@ class JwtServiceTest {
 
   @Test
   void issueServiceToken_usesTheShorterServiceTtl() {
-    PrincipalEntity principal = new PrincipalEntity("hash-not-relevant-here", Set.of("SERVICE_INTERNAL"),
+    PrincipalEntity principal = new PrincipalEntity("hash-not-relevant-here", Set.of("USER_SERVICE"),
         PrincipalTypeEnum.SERVICE);
-    when(roleRepository.findAllById(Set.of("SERVICE_INTERNAL")))
-        .thenReturn(List.of(new RoleEntity("SERVICE_INTERNAL", Set.of("CREATE_PRINCIPAL"))));
+    when(roleRepository.findAllById(Set.of("USER_SERVICE")))
+        .thenReturn(List.of(new RoleEntity("USER_SERVICE", Set.of("CREATE_PRINCIPAL"))));
 
     String token = jwtService.issueServiceToken(principal);
     Jwt decoded = jwtDecoder.decode(token);

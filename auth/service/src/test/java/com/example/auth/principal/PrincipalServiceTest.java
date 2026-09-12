@@ -113,7 +113,7 @@ class PrincipalServiceTest {
   @Test
   void authenticateService_wrongSecret_throwsInvalidCredentials() {
     PrincipalEntity principal = new PrincipalEntity(passwordEncoder.encode("the-real-secret"),
-        Set.of("SERVICE_INTERNAL"),
+        Set.of("USER_SERVICE"),
         PrincipalTypeEnum.SERVICE);
     LoginEntity login = new LoginEntity(principal, AuthProviderEnum.CLIENT_ID, "user-service");
     when(loginRepository.findByProviderAndAccountId(any(), any())).thenReturn(Optional.of(login));
@@ -140,7 +140,7 @@ class PrincipalServiceTest {
   @Test
   void authenticateService_correctCredentials_returnsThePrincipal() {
     PrincipalEntity principal = new PrincipalEntity(passwordEncoder.encode("the-real-secret"),
-        Set.of("SERVICE_INTERNAL"),
+        Set.of("USER_SERVICE"),
         PrincipalTypeEnum.SERVICE);
     LoginEntity login = new LoginEntity(principal, AuthProviderEnum.CLIENT_ID, "user-service");
     when(loginRepository.findByProviderAndAccountId(any(), any())).thenReturn(Optional.of(login));

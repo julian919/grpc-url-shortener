@@ -1,0 +1,7 @@
+# Generated from the protos by `npm run gen:proto` -- reviewed as a contract diff, never edited
+# (and never reformatted, so the diff stays exactly what the generator produced).
+src/shared/api/gen
+
+.next
+node_modules
+package-lock.json

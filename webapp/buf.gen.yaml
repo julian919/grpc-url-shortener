@@ -1,0 +1,30 @@
+# Generates TypeScript from the SAME .proto files the Java services compile, so the frontend
+# cannot drift from the contract. Run: npm run gen:proto
+#
+# Why protos rather than the OpenAPI doc: that doc is itself derived (proto -> protoc-gen-openapiv2
+# -> Swagger 2.0), and Envoy's transcoder speaks proto3 canonical JSON -- which protobuf-es's
+# fromJson/toJson implement exactly (int64 as strings, enums by name, lowerCamelCase fields).
+# Same shape as Cognixus's webapps, which generate from protos into per-domain repositories.
+version: v2
+
+clean: true
+
+inputs:
+  # The repo root: every proto is addressed from there, so "auth/api/auth_api.proto" resolves
+  # the same way it does for Maven and for the edge descriptor.
+  - directory: ..
+    paths:
+      - ../auth/api
+      - ../shortener/api
+      - ../user/api
+      # The service protos import google/api/annotations.proto for their HTTP mappings, so its
+      # generated module has to exist too. (google/protobuf/* needs no entry: protobuf-es maps
+      # the well-known types to @bufbuild/protobuf/wkt.)
+      - ../google/api
+
+plugins:
+  # Resolved from node_modules/.bin, so no global install and no protoc on PATH.
+  - local: protoc-gen-es
+    out: src/shared/api/gen
+    opt:
+      - target=ts

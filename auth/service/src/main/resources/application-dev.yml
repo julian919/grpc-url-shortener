@@ -1,0 +1,8 @@
+# Activated with SPRING_PROFILES_ACTIVE=dev (compose sets it for auth-service).
+#
+# The ONLY thing this profile does is widen Flyway's search path to include the dev seed. Prod
+# activates a different profile -- or none -- and therefore never resolves db/dev at all: opting
+# out is the default, and running the seed takes a deliberate act.
+spring:
+  flyway:
+    locations: classpath:db/migration,classpath:db/dev

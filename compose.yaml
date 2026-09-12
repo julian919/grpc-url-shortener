@@ -60,6 +60,10 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/authdb
       SPRING_DATASOURCE_USERNAME: auth
       SPRING_DATASOURCE_PASSWORD: auth
+      # Adds classpath:db/dev to Flyway's locations, which is what lets
+      # db/dev/R__init_auth.sql seed the service clients. Drop this line and the seed
+      # cannot run -- that is how a real environment opts out.
+      SPRING_PROFILES_ACTIVE: dev
     ports:
       - "9092:9092"
     depends_on:
@@ -72,6 +76,11 @@ services:
       dockerfile: user/service/Dockerfile
     environment:
       SPRING_PROFILES_ACTIVE: docker
+      # The client half of the credential: user-service needs the PLAINTEXT to authenticate.
+      # Must match the dev value seeded by auth's db/dev/R__init_auth.sql. Note auth-service no
+      # longer receives this variable at all -- it only ever stores the bcrypt hash, so keeping
+      # the plaintext out of its environment is one less place a compromise would yield it.
+      USER_SERVICE_AUTH_SECRET: ${USER_SERVICE_AUTH_SECRET:-user-service-secret}
     ports:
       - "9093:9093"
     depends_on:
