@@ -4,8 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.when;
 
-import com.example.user.entity.UserEntity;
-import com.example.user.repository.UserRepository;
+import com.example.user.shared.entity.UserEntity;
+import com.example.user.shared.repository.UserRepository;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import java.time.Instant;

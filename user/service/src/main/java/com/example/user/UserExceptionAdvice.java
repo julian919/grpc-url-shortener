@@ -1,6 +1,6 @@
 package com.example.user;
 
-import com.example.user.exception.InvalidArgumentException;
+import com.example.user.registration.exception.InvalidArgumentException;
 import com.example.user.registration.exception.RegistrationFailedException;
 import io.grpc.Status;
 import org.springframework.grpc.server.advice.GrpcAdvice;

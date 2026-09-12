@@ -11,7 +11,7 @@ import static org.mockito.Mockito.when;
 import com.example.shortener.api.LinkStatus;
 import com.example.shortener.api.ListShortLinksResponse;
 import com.example.shortener.api.ShortLink;
-import com.example.shortener.exception.InvalidArgumentException;
+import com.example.shortener.link.exception.InvalidArgumentException;
 import com.example.shortener.link.entity.ShortLinkEntity;
 import com.example.shortener.link.exception.AuthorNotActiveException;
 import com.example.shortener.link.exception.UrlFlaggedException;

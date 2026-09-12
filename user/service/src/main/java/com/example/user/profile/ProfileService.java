@@ -1,7 +1,7 @@
 package com.example.user.profile;
 
-import com.example.user.entity.UserEntity;
-import com.example.user.repository.UserRepository;
+import com.example.user.shared.entity.UserEntity;
+import com.example.user.shared.repository.UserRepository;
 import io.grpc.Status;
 import java.util.UUID;
 import org.springframework.stereotype.Service;

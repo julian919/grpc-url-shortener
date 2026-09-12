@@ -1,8 +1,8 @@
 package com.example.user.registration;
 
-import com.example.user.exception.InvalidArgumentException;
-import com.example.user.entity.UserEntity;
-import com.example.user.repository.UserRepository;
+import com.example.user.registration.exception.InvalidArgumentException;
+import com.example.user.shared.entity.UserEntity;
+import com.example.user.shared.repository.UserRepository;
 import java.time.Instant;
 import java.util.UUID;
 import org.springframework.stereotype.Service;

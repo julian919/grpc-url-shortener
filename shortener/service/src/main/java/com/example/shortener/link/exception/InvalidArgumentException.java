@@ -1,4 +1,4 @@
-package com.example.shortener.exception;
+package com.example.shortener.link.exception;
 
 /**
  * The request failed validation before any downstream call was made.

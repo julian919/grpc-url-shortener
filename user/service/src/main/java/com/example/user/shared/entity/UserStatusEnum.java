@@ -1,4 +1,4 @@
-package com.example.user.entity;
+package com.example.user.shared.entity;
 
 /**
  * Business standing of a user, owned by this service.

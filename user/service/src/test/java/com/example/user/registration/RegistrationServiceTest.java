@@ -7,10 +7,10 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-import com.example.user.exception.InvalidArgumentException;
-import com.example.user.entity.UserEntity;
-import com.example.user.entity.UserStatusEnum;
-import com.example.user.repository.UserRepository;
+import com.example.user.registration.exception.InvalidArgumentException;
+import com.example.user.shared.entity.UserEntity;
+import com.example.user.shared.entity.UserStatusEnum;
+import com.example.user.shared.repository.UserRepository;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

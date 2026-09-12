@@ -1,6 +1,6 @@
 package com.example.shortener;
 
-import com.example.shortener.exception.InvalidArgumentException;
+import com.example.shortener.link.exception.InvalidArgumentException;
 import com.example.shortener.link.exception.AuthorNotActiveException;
 import com.example.shortener.link.exception.UrlFlaggedException;
 import io.grpc.Status;

@@ -1,4 +1,4 @@
-package com.example.user.entity;
+package com.example.user.shared.entity;
 
 import com.example.user.api.User;
 import com.example.user.api.UserStatus;

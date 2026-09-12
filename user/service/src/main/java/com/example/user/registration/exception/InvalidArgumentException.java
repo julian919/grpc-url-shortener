@@ -1,4 +1,4 @@
-package com.example.user.exception;
+package com.example.user.registration.exception;
 
 public class InvalidArgumentException extends RuntimeException {
   //
