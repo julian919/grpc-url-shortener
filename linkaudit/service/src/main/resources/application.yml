@@ -1,6 +1,0 @@
-spring:
-  application:
-    name: link-audit-service
-  grpc:
-    server:
-      port: 9091

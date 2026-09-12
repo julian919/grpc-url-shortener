@@ -23,6 +23,7 @@ import "auth/api/auth_api.proto";
 // same treatment google/protobuf/descriptor.proto already gets.
 import "google/api/annotations.proto";
 
+
 option java_multiple_files = true;
 option java_package = "com.example.shortener.api";
 option java_outer_classname = "ShortenerProto";
@@ -30,10 +31,11 @@ option java_outer_classname = "ShortenerProto";
 // ---------------------------------------------------------------------------
 // LinkStatus is THE shared type of this project.
 //
-// Both shortener-service and link-audit-service are generated from this one
-// enum. That is the entire point: in a previous project this enum was
-// hand-copied into a second service and the two definitions drifted apart.
-// Here, adding a value is a single edit to a single file.
+// Every consumer is generated from this one enum -- shortener-service in Java,
+// the webapp in TypeScript via protobuf-es. That is the entire point: in a
+// previous project this enum was hand-copied into a second service and the two
+// definitions drifted apart. Here, adding a value is a single edit to a single
+// file, picked up by both toolchains on the next build.
 //
 // Rules being obeyed (see lessons/0001):
 //   - a zero value MUST exist, because proto3 cannot distinguish "unset"
@@ -58,6 +60,12 @@ message ShortLink {
   string     long_url   = 2;
   int64      created_at = 3;  // epoch millis
   LinkStatus status     = 4;
+
+  // Output only: set by the server on every mutation, ignored if a client sends
+  // it. AIP-148 would call this update_time and type it google.protobuf.Timestamp;
+  // it is int64 epoch millis here to match created_at above, since having two
+  // timestamp representations in one message is worse than not matching the AIP.
+  int64      updated_at = 5;
 }
 
 // Request and response are always their own message type, even when they wrap
@@ -69,22 +77,22 @@ message CreateShortLinkRequest {
 // Previously a `oneof { ShortLink link; Error error; }`, treating a rejected
 // URL as a normal successful response. Reverted: gRPC's own Status codes are
 // the more standard place for this (INVALID_ARGUMENT, FAILED_PRECONDITION),
-// same convention as ResolveShortLink's NOT_FOUND below -- see
+// same convention as GetShortLink's NOT_FOUND below -- see
 // lessons/0004-rpc-kinds-deadlines-status-codes.html for why this changed
 // after it was already built and working.
 message CreateShortLinkResponse {
-  ShortLink link = 1;
+  ShortLink short_link = 1;
 }
 
-message ResolveShortLinkRequest {
+message GetShortLinkRequest {
   string short_code = 1;
 }
 
-message ResolveShortLinkResponse {
-  ShortLink link = 1;
+message GetShortLinkResponse {
+  ShortLink short_link = 1;
 }
 
-message RetrieveShortLinksRequest {
+message ListShortLinksRequest {
   int32 page      = 1;
   int32 page_size = 2;
 }
@@ -96,9 +104,35 @@ message PageInfo {
   int32 total_pages = 4;
 }
 
-message RetrieveShortLinksResponse {
-  repeated ShortLink links     = 1;
-  PageInfo           page_info = 2;
+message ListShortLinksResponse {
+  // Named for the resource type in snake_case, per AIP-122: "the field name should be
+  // equivalent to the corresponding message's name in snake case". Every ShortLink-typed
+  // field in this file follows that, so there is one name to remember rather than two.
+  repeated ShortLink short_links = 1;
+  PageInfo           page_info   = 2;
+}
+
+// Partial update via proto3 EXPLICIT PRESENCE, not a google.protobuf.FieldMask.
+//
+// The problem both solve is the same: proto3 cannot tell "the client omitted
+// this" from "the client sent the zero value", so a server copying every field
+// of the request would blank out whatever the caller left unset. `optional`
+// answers it per field -- hasLongUrl() is true only if the client actually sent
+// long_url -- which is all this message needs.
+//
+// A FieldMask earns its keep on large resources with many clients, where you
+// want one generic Update instead of dozens of narrow rpcs, and where the mask
+// can name NESTED paths ("author.address.city") that `optional` cannot express.
+// ShortLink has two mutable fields. Same posture as Cognixus, which has no
+// FieldMask anywhere and uses `optional` plus purpose-specific Update rpcs.
+message UpdateShortLinkRequest {
+  string              short_code = 1;
+  optional string     long_url   = 2;
+  optional LinkStatus status     = 3;
+}
+
+message UpdateShortLinkResponse {
+  ShortLink short_link = 1;
 }
 
 service ShortenerService {
@@ -121,14 +155,14 @@ service ShortenerService {
 
   // Read path. This is the RPC that gets scaled to N replicas in lesson 6,
   // and the one ghz hammers in lesson 7. No permission required -- public.
-  rpc ResolveShortLink(ResolveShortLinkRequest) returns (ResolveShortLinkResponse) {
+  rpc GetShortLink(GetShortLinkRequest) returns (GetShortLinkResponse) {
     // {short_code} binds the path segment onto the field of the same name.
     option (google.api.http) = {
       get: "/api/links/{short_code}"
     };
   }
 
-  rpc RetrieveShortLinks(RetrieveShortLinksRequest) returns (RetrieveShortLinksResponse){
+  rpc ListShortLinks(ListShortLinksRequest) returns (ListShortLinksResponse){
     option (auth.api.requires_permissions).permissions = "LIST_SHORT_URL";
 
     // No body and no path params, so every remaining field of the request
@@ -137,4 +171,26 @@ service ShortenerService {
       get: "/api/links"
     };
   };
+
+  // PATCH, not PUT: this is a partial update, and PUT means "replace the whole
+  // resource". AIP-134 mandates PATCH for the standard Update method.
+  rpc UpdateShortLink(UpdateShortLinkRequest) returns (UpdateShortLinkResponse) {
+    option (auth.api.requires_permissions).permissions = "UPDATE_SHORT_URL";
+
+    // Same shape as GetShortLink: {short_code} binds the path segment onto the
+    // field of the same name. body: "*" maps the JSON onto every field NOT
+    // already bound by the path -- so short_code comes from the URL and must
+    // NOT be repeated in the body. Omit a field to leave it alone.
+    //   PATCH /api/links/abc123
+    //   {"longUrl": "https://example.com", "status": "LINK_STATUS_EXPIRED"}
+    //
+    // A short_code sent in the body is silently ignored, and the service cannot
+    // detect it: the transcoder has already filled the field from the path, so
+    // there is nothing left to compare against. PATCH /api/links/A with
+    // {"shortCode": "B"} updates A and returns 200. Verified against the edge.
+    option (google.api.http) = {
+      patch: "/api/links/{short_code}"
+      body: "*"
+    };
+  }
 }

@@ -1,24 +1,23 @@
 package com.example.shortener.link;
 
-import com.example.linkaudit.api.LinkAuditServiceGrpc;
-import com.example.linkaudit.api.ReportLinkCreatedRequest;
-import com.example.linkaudit.api.ReportLinkCreatedResponse;
 import com.example.shortener.api.LinkStatus;
 import com.example.shortener.api.PageInfo;
-import com.example.shortener.api.RetrieveShortLinksResponse;
+import com.example.shortener.api.ListShortLinksResponse;
 import com.example.shortener.api.ShortLink;
 import com.example.shortener.exception.InvalidArgumentException;
 import com.example.shortener.link.entity.ShortLinkEntity;
-import com.example.shortener.link.exception.AuditUnavailableException;
 import com.example.shortener.link.exception.UrlFlaggedException;
 import com.example.shortener.link.repository.ShortLinkRepository;
 import io.grpc.Status;
 import java.net.URI;
+import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class LinkService {
@@ -27,17 +26,21 @@ public class LinkService {
   private static final int DEFAULT_PAGE_SIZE = 10;
   private static final int MAX_PAGE_SIZE = 100;
 
+  /**
+   * Hosts refused at creation time. This was linkaudit-service, a separate gRPC service called
+   * over the wire on every create; it is now a local check, because a hardcoded blocklist lookup
+   * never justified its own deployable, its own channel, and a network hop that could fail
+   * independently of the thing it was guarding.
+   */
+  private static final Set<String> BLOCKED_HOSTS =
+      Set.of("malware.test", "phishing.test", "spam.test");
+
   private final ShortLinkRepository repository;
   private final ShortCodeGenerator generator;
-  private final LinkAuditServiceGrpc.LinkAuditServiceBlockingStub auditStub;
 
-  public LinkService(
-      ShortLinkRepository repository,
-      ShortCodeGenerator generator,
-      LinkAuditServiceGrpc.LinkAuditServiceBlockingStub auditStub) {
+  public LinkService(ShortLinkRepository repository, ShortCodeGenerator generator) {
     this.repository = repository;
     this.generator = generator;
-    this.auditStub = auditStub;
   }
 
   public ShortLink createShortLink(String longUrl) {
@@ -48,33 +51,45 @@ public class LinkService {
               + ")");
     }
 
+    long now = System.currentTimeMillis();
     ShortLink link =
         ShortLink.newBuilder()
             .setShortCode(generator.next())
             .setLongUrl(longUrl)
-            .setCreatedAt(System.currentTimeMillis())
+            .setCreatedAt(now)
+            .setUpdatedAt(now)
             .setStatus(LinkStatus.LINK_STATUS_ACTIVE)
             .build();
 
-    ReportLinkCreatedResponse audit;
-    try {
-      audit =
-          auditStub.reportLinkCreated(
-              ReportLinkCreatedRequest.newBuilder().setLink(link).build());
-    } catch (RuntimeException e) {
-      throw new AuditUnavailableException("failed to verify url " + link.getLongUrl(), e);
-    }
-
-    if (audit.getResultingStatus() == LinkStatus.LINK_STATUS_FLAGGED) {
-      log.warn("link {} flagged by audit: {}", link.getShortCode(), audit.getReason());
-      throw new UrlFlaggedException("Shortener URL has been flagged: " + audit.getReason());
-    }
+    auditOrThrow(link);
 
     repository.save(ShortLinkEntity.fromProto(link));
     return link;
   }
 
-  public ShortLink resolveShortLink(String shortCode) {
+  /**
+   * Rejects a link whose host is on the blocklist. Throws rather than returning a status, so a
+   * flagged link is never persisted -- the same outcome the remote audit produced, minus the
+   * UNAVAILABLE failure mode that only existed because the check lived across a network boundary.
+   */
+  private void auditOrThrow(ShortLink link) {
+    String host = hostOf(link.getLongUrl());
+    if (host != null && BLOCKED_HOSTS.contains(host)) {
+      String reason = "host is on the blocklist: " + host;
+      log.warn("link {} flagged by audit: {}", link.getShortCode(), reason);
+      throw new UrlFlaggedException("Shortener URL has been flagged: " + reason);
+    }
+  }
+
+  private static String hostOf(String url) {
+    try {
+      return URI.create(url).getHost();
+    } catch (IllegalArgumentException notAUrl) {
+      return null;
+    }
+  }
+
+  public ShortLink getShortLink(String shortCode) {
     return repository
         .findById(shortCode)
         .map(ShortLinkEntity::toProto)
@@ -85,7 +100,7 @@ public class LinkService {
                     .asRuntimeException());
   }
 
-  public RetrieveShortLinksResponse retrieveShortLinks(int requestedPage, int requestedPageSize) {
+  public ListShortLinksResponse listShortLinks(int requestedPage, int requestedPageSize) {
     if (requestedPage < 0) {
       throw new InvalidArgumentException("page must be non-negative (got: " + requestedPage + ")");
     }
@@ -113,10 +128,71 @@ public class LinkService {
             .setTotalPages(totalPages)
             .build();
 
-    return RetrieveShortLinksResponse.newBuilder()
-        .addAllLinks(links)
+    return ListShortLinksResponse.newBuilder()
+        .addAllShortLinks(links)
         .setPageInfo(pageInfo)
         .build();
+  }
+
+  /**
+   * Partial update. {@code longUrl} and {@code status} are NULL when the caller did not send them
+   * -- the gRPC adapter maps proto3 explicit presence (hasLongUrl/hasStatus) onto null here, so
+   * "absent" and "the zero value" stay distinguishable without a FieldMask.
+   *
+   * <p>Two rules this enforces that a naive setter-copy would miss:
+   *
+   * <ul>
+   *   <li>changing longUrl RE-RUNS the audit. Otherwise update is a trivial bypass of the
+   *       blocklist: create with a clean URL, then patch it to a blocked one.
+   *   <li>a client may not set FLAGGED. That value is the audit's verdict, not a caller's opinion,
+   *       and letting it be written by hand would make the field meaningless.
+   * </ul>
+   *
+   * <p>Transactional because the entity is mutated in place: Hibernate dirty-checks the managed
+   * instance and writes at commit, so there is no explicit save call here.
+   */
+  @Transactional
+  public ShortLink updateShortLink(String shortCode, String longUrl, LinkStatus status) {
+    if (shortCode == null || shortCode.isBlank()) {
+      throw new InvalidArgumentException("short_code is required");
+    }
+    if (longUrl == null && status == null) {
+      throw new InvalidArgumentException("nothing to update: send long_url and/or status");
+    }
+
+    ShortLinkEntity entity =
+        repository
+            .findById(shortCode)
+            .orElseThrow(
+                () ->
+                    Status.NOT_FOUND
+                        .withDescription("no such short code: " + shortCode)
+                        .asRuntimeException());
+
+    if (longUrl != null) {
+      if (!isShortenableUrl(longUrl)) {
+        throw new InvalidArgumentException(
+            "long_url must be an absolute http or https URL with a host (got: " + longUrl + ")");
+      }
+      // Re-audit: the blocklist applies to the new destination exactly as it did at creation.
+      auditOrThrow(ShortLink.newBuilder().setShortCode(shortCode).setLongUrl(longUrl).build());
+    }
+
+    if (status != null) {
+      if (status == LinkStatus.LINK_STATUS_UNSPECIFIED) {
+        throw new InvalidArgumentException(
+            "status must be a real value, not LINK_STATUS_UNSPECIFIED");
+      }
+      if (status == LinkStatus.LINK_STATUS_FLAGGED) {
+        throw new InvalidArgumentException(
+            "status LINK_STATUS_FLAGGED is set by the audit, not by clients");
+      }
+    }
+
+    entity.applyUpdate(longUrl, status, Instant.now());
+    log.info(
+        "updated link {} (long_url: {}, status: {})", shortCode, longUrl != null, status != null);
+    return entity.toProto();
   }
 
   public static boolean isShortenableUrl(String raw) {

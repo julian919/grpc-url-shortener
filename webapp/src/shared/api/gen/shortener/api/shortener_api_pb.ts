@@ -21,7 +21,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file shortener/api/shortener_api.proto.
  */
 export const file_shortener_api_shortener_api: GenFile = /*@__PURE__*/
-  fileDesc("CiFzaG9ydGVuZXIvYXBpL3Nob3J0ZW5lcl9hcGkucHJvdG8SDXNob3J0ZW5lci5hcGkicAoJU2hvcnRMaW5rEhIKCnNob3J0X2NvZGUYASABKAkSEAoIbG9uZ191cmwYAiABKAkSEgoKY3JlYXRlZF9hdBgDIAEoAxIpCgZzdGF0dXMYBCABKA4yGS5zaG9ydGVuZXIuYXBpLkxpbmtTdGF0dXMiKgoWQ3JlYXRlU2hvcnRMaW5rUmVxdWVzdBIQCghsb25nX3VybBgBIAEoCSJBChdDcmVhdGVTaG9ydExpbmtSZXNwb25zZRImCgRsaW5rGAEgASgLMhguc2hvcnRlbmVyLmFwaS5TaG9ydExpbmsiLQoXUmVzb2x2ZVNob3J0TGlua1JlcXVlc3QSEgoKc2hvcnRfY29kZRgBIAEoCSJCChhSZXNvbHZlU2hvcnRMaW5rUmVzcG9uc2USJgoEbGluaxgBIAEoCzIYLnNob3J0ZW5lci5hcGkuU2hvcnRMaW5rIjwKGVJldHJpZXZlU2hvcnRMaW5rc1JlcXVlc3QSDAoEcGFnZRgBIAEoBRIRCglwYWdlX3NpemUYAiABKAUiVQoIUGFnZUluZm8SDAoEcGFnZRgBIAEoBRIRCglwYWdlX3NpemUYAiABKAUSEwoLdG90YWxfY291bnQYAyABKAUSEwoLdG90YWxfcGFnZXMYBCABKAUicQoaUmV0cmlldmVTaG9ydExpbmtzUmVzcG9uc2USJwoFbGlua3MYASADKAsyGC5zaG9ydGVuZXIuYXBpLlNob3J0TGluaxIqCglwYWdlX2luZm8YAiABKAsyFy5zaG9ydGVuZXIuYXBpLlBhZ2VJbmZvKnMKCkxpbmtTdGF0dXMSGwoXTElOS19TVEFUVVNfVU5TUEVDSUZJRUQQABIWChJMSU5LX1NUQVRVU19BQ1RJVkUQARIXChNMSU5LX1NUQVRVU19FWFBJUkVEEAISFwoTTElOS19TVEFUVVNfRkxBR0dFRBADMsEDChBTaG9ydGVuZXJTZXJ2aWNlEo8BCg9DcmVhdGVTaG9ydExpbmsSJS5zaG9ydGVuZXIuYXBpLkNyZWF0ZVNob3J0TGlua1JlcXVlc3QaJi5zaG9ydGVuZXIuYXBpLkNyZWF0ZVNob3J0TGlua1Jlc3BvbnNlIi2C0+STAg86ASoiCi9hcGkvbGlua3Py////DxIKEENSRUFURV9TSE9SVF9VUkwShAEKEFJlc29sdmVTaG9ydExpbmsSJi5zaG9ydGVuZXIuYXBpLlJlc29sdmVTaG9ydExpbmtSZXF1ZXN0Gicuc2hvcnRlbmVyLmFwaS5SZXNvbHZlU2hvcnRMaW5rUmVzcG9uc2UiH4LT5JMCGRIXL2FwaS9saW5rcy97c2hvcnRfY29kZX0SkwEKElJldHJpZXZlU2hvcnRMaW5rcxIoLnNob3J0ZW5lci5hcGkuUmV0cmlldmVTaG9ydExpbmtzUmVxdWVzdBopLnNob3J0ZW5lci5hcGkuUmV0cmlldmVTaG9ydExpbmtzUmVzcG9uc2UiKILT5JMCDBIKL2FwaS9saW5rc/L///8PEAoOTElTVF9TSE9SVF9VUkxCLQoZY29tLmV4YW1wbGUuc2hvcnRlbmVyLmFwaUIOU2hvcnRlbmVyUHJvdG9QAWIGcHJvdG8z", [file_auth_api_auth_api, file_google_api_annotations]);
+  fileDesc("CiFzaG9ydGVuZXIvYXBpL3Nob3J0ZW5lcl9hcGkucHJvdG8SDXNob3J0ZW5lci5hcGkihAEKCVNob3J0TGluaxISCgpzaG9ydF9jb2RlGAEgASgJEhAKCGxvbmdfdXJsGAIgASgJEhIKCmNyZWF0ZWRfYXQYAyABKAMSKQoGc3RhdHVzGAQgASgOMhkuc2hvcnRlbmVyLmFwaS5MaW5rU3RhdHVzEhIKCnVwZGF0ZWRfYXQYBSABKAMiKgoWQ3JlYXRlU2hvcnRMaW5rUmVxdWVzdBIQCghsb25nX3VybBgBIAEoCSJHChdDcmVhdGVTaG9ydExpbmtSZXNwb25zZRIsCgpzaG9ydF9saW5rGAEgASgLMhguc2hvcnRlbmVyLmFwaS5TaG9ydExpbmsiKQoTR2V0U2hvcnRMaW5rUmVxdWVzdBISCgpzaG9ydF9jb2RlGAEgASgJIkQKFEdldFNob3J0TGlua1Jlc3BvbnNlEiwKCnNob3J0X2xpbmsYASABKAsyGC5zaG9ydGVuZXIuYXBpLlNob3J0TGluayI4ChVMaXN0U2hvcnRMaW5rc1JlcXVlc3QSDAoEcGFnZRgBIAEoBRIRCglwYWdlX3NpemUYAiABKAUiVQoIUGFnZUluZm8SDAoEcGFnZRgBIAEoBRIRCglwYWdlX3NpemUYAiABKAUSEwoLdG90YWxfY291bnQYAyABKAUSEwoLdG90YWxfcGFnZXMYBCABKAUicwoWTGlzdFNob3J0TGlua3NSZXNwb25zZRItCgtzaG9ydF9saW5rcxgBIAMoCzIYLnNob3J0ZW5lci5hcGkuU2hvcnRMaW5rEioKCXBhZ2VfaW5mbxgCIAEoCzIXLnNob3J0ZW5lci5hcGkuUGFnZUluZm8iiwEKFlVwZGF0ZVNob3J0TGlua1JlcXVlc3QSEgoKc2hvcnRfY29kZRgBIAEoCRIVCghsb25nX3VybBgCIAEoCUgAiAEBEi4KBnN0YXR1cxgDIAEoDjIZLnNob3J0ZW5lci5hcGkuTGlua1N0YXR1c0gBiAEBQgsKCV9sb25nX3VybEIJCgdfc3RhdHVzIkcKF1VwZGF0ZVNob3J0TGlua1Jlc3BvbnNlEiwKCnNob3J0X2xpbmsYASABKAsyGC5zaG9ydGVuZXIuYXBpLlNob3J0TGluaypzCgpMaW5rU3RhdHVzEhsKF0xJTktfU1RBVFVTX1VOU1BFQ0lGSUVEEAASFgoSTElOS19TVEFUVVNfQUNUSVZFEAESFwoTTElOS19TVEFUVVNfRVhQSVJFRBACEhcKE0xJTktfU1RBVFVTX0ZMQUdHRUQQAzLHBAoQU2hvcnRlbmVyU2VydmljZRKPAQoPQ3JlYXRlU2hvcnRMaW5rEiUuc2hvcnRlbmVyLmFwaS5DcmVhdGVTaG9ydExpbmtSZXF1ZXN0GiYuc2hvcnRlbmVyLmFwaS5DcmVhdGVTaG9ydExpbmtSZXNwb25zZSItgtPkkwIPOgEqIgovYXBpL2xpbmtz8v///w8SChBDUkVBVEVfU0hPUlRfVVJMEngKDEdldFNob3J0TGluaxIiLnNob3J0ZW5lci5hcGkuR2V0U2hvcnRMaW5rUmVxdWVzdBojLnNob3J0ZW5lci5hcGkuR2V0U2hvcnRMaW5rUmVzcG9uc2UiH4LT5JMCGRIXL2FwaS9saW5rcy97c2hvcnRfY29kZX0ShwEKDkxpc3RTaG9ydExpbmtzEiQuc2hvcnRlbmVyLmFwaS5MaXN0U2hvcnRMaW5rc1JlcXVlc3QaJS5zaG9ydGVuZXIuYXBpLkxpc3RTaG9ydExpbmtzUmVzcG9uc2UiKILT5JMCDBIKL2FwaS9saW5rc/L///8PEAoOTElTVF9TSE9SVF9VUkwSnAEKD1VwZGF0ZVNob3J0TGluaxIlLnNob3J0ZW5lci5hcGkuVXBkYXRlU2hvcnRMaW5rUmVxdWVzdBomLnNob3J0ZW5lci5hcGkuVXBkYXRlU2hvcnRMaW5rUmVzcG9uc2UiOoLT5JMCHDoBKjIXL2FwaS9saW5rcy97c2hvcnRfY29kZX3y////DxIKEFVQREFURV9TSE9SVF9VUkxCLQoZY29tLmV4YW1wbGUuc2hvcnRlbmVyLmFwaUIOU2hvcnRlbmVyUHJvdG9QAWIGcHJvdG8z", [file_auth_api_auth_api, file_google_api_annotations]);
 
 /**
  * Nothing retired yet. When a field is deleted, its number and name are
@@ -53,6 +53,16 @@ export type ShortLink = Message<"shortener.api.ShortLink"> & {
    * @generated from field: shortener.api.LinkStatus status = 4;
    */
   status: LinkStatus;
+
+  /**
+   * Output only: set by the server on every mutation, ignored if a client sends
+   * it. AIP-148 would call this update_time and type it google.protobuf.Timestamp;
+   * it is int64 epoch millis here to match created_at above, since having two
+   * timestamp representations in one message is worse than not matching the AIP.
+   *
+   * @generated from field: int64 updated_at = 5;
+   */
+  updatedAt: bigint;
 };
 
 /**
@@ -86,7 +96,7 @@ export const CreateShortLinkRequestSchema: GenMessage<CreateShortLinkRequest> = 
  * Previously a `oneof { ShortLink link; Error error; }`, treating a rejected
  * URL as a normal successful response. Reverted: gRPC's own Status codes are
  * the more standard place for this (INVALID_ARGUMENT, FAILED_PRECONDITION),
- * same convention as ResolveShortLink's NOT_FOUND below -- see
+ * same convention as GetShortLink's NOT_FOUND below -- see
  * lessons/0004-rpc-kinds-deadlines-status-codes.html for why this changed
  * after it was already built and working.
  *
@@ -94,9 +104,9 @@ export const CreateShortLinkRequestSchema: GenMessage<CreateShortLinkRequest> = 
  */
 export type CreateShortLinkResponse = Message<"shortener.api.CreateShortLinkResponse"> & {
   /**
-   * @generated from field: shortener.api.ShortLink link = 1;
+   * @generated from field: shortener.api.ShortLink short_link = 1;
    */
-  link?: ShortLink | undefined;
+  shortLink?: ShortLink | undefined;
 };
 
 /**
@@ -107,9 +117,9 @@ export const CreateShortLinkResponseSchema: GenMessage<CreateShortLinkResponse> 
   messageDesc(file_shortener_api_shortener_api, 2);
 
 /**
- * @generated from message shortener.api.ResolveShortLinkRequest
+ * @generated from message shortener.api.GetShortLinkRequest
  */
-export type ResolveShortLinkRequest = Message<"shortener.api.ResolveShortLinkRequest"> & {
+export type GetShortLinkRequest = Message<"shortener.api.GetShortLinkRequest"> & {
   /**
    * @generated from field: string short_code = 1;
    */
@@ -117,33 +127,33 @@ export type ResolveShortLinkRequest = Message<"shortener.api.ResolveShortLinkReq
 };
 
 /**
- * Describes the message shortener.api.ResolveShortLinkRequest.
- * Use `create(ResolveShortLinkRequestSchema)` to create a new message.
+ * Describes the message shortener.api.GetShortLinkRequest.
+ * Use `create(GetShortLinkRequestSchema)` to create a new message.
  */
-export const ResolveShortLinkRequestSchema: GenMessage<ResolveShortLinkRequest> = /*@__PURE__*/
+export const GetShortLinkRequestSchema: GenMessage<GetShortLinkRequest> = /*@__PURE__*/
   messageDesc(file_shortener_api_shortener_api, 3);
 
 /**
- * @generated from message shortener.api.ResolveShortLinkResponse
+ * @generated from message shortener.api.GetShortLinkResponse
  */
-export type ResolveShortLinkResponse = Message<"shortener.api.ResolveShortLinkResponse"> & {
+export type GetShortLinkResponse = Message<"shortener.api.GetShortLinkResponse"> & {
   /**
-   * @generated from field: shortener.api.ShortLink link = 1;
+   * @generated from field: shortener.api.ShortLink short_link = 1;
    */
-  link?: ShortLink | undefined;
+  shortLink?: ShortLink | undefined;
 };
 
 /**
- * Describes the message shortener.api.ResolveShortLinkResponse.
- * Use `create(ResolveShortLinkResponseSchema)` to create a new message.
+ * Describes the message shortener.api.GetShortLinkResponse.
+ * Use `create(GetShortLinkResponseSchema)` to create a new message.
  */
-export const ResolveShortLinkResponseSchema: GenMessage<ResolveShortLinkResponse> = /*@__PURE__*/
+export const GetShortLinkResponseSchema: GenMessage<GetShortLinkResponse> = /*@__PURE__*/
   messageDesc(file_shortener_api_shortener_api, 4);
 
 /**
- * @generated from message shortener.api.RetrieveShortLinksRequest
+ * @generated from message shortener.api.ListShortLinksRequest
  */
-export type RetrieveShortLinksRequest = Message<"shortener.api.RetrieveShortLinksRequest"> & {
+export type ListShortLinksRequest = Message<"shortener.api.ListShortLinksRequest"> & {
   /**
    * @generated from field: int32 page = 1;
    */
@@ -156,10 +166,10 @@ export type RetrieveShortLinksRequest = Message<"shortener.api.RetrieveShortLink
 };
 
 /**
- * Describes the message shortener.api.RetrieveShortLinksRequest.
- * Use `create(RetrieveShortLinksRequestSchema)` to create a new message.
+ * Describes the message shortener.api.ListShortLinksRequest.
+ * Use `create(ListShortLinksRequestSchema)` to create a new message.
  */
-export const RetrieveShortLinksRequestSchema: GenMessage<RetrieveShortLinksRequest> = /*@__PURE__*/
+export const ListShortLinksRequestSchema: GenMessage<ListShortLinksRequest> = /*@__PURE__*/
   messageDesc(file_shortener_api_shortener_api, 5);
 
 /**
@@ -195,13 +205,17 @@ export const PageInfoSchema: GenMessage<PageInfo> = /*@__PURE__*/
   messageDesc(file_shortener_api_shortener_api, 6);
 
 /**
- * @generated from message shortener.api.RetrieveShortLinksResponse
+ * @generated from message shortener.api.ListShortLinksResponse
  */
-export type RetrieveShortLinksResponse = Message<"shortener.api.RetrieveShortLinksResponse"> & {
+export type ListShortLinksResponse = Message<"shortener.api.ListShortLinksResponse"> & {
   /**
-   * @generated from field: repeated shortener.api.ShortLink links = 1;
+   * Named for the resource type in snake_case, per AIP-122: "the field name should be
+   * equivalent to the corresponding message's name in snake case". Every ShortLink-typed
+   * field in this file follows that, so there is one name to remember rather than two.
+   *
+   * @generated from field: repeated shortener.api.ShortLink short_links = 1;
    */
-  links: ShortLink[];
+  shortLinks: ShortLink[];
 
   /**
    * @generated from field: shortener.api.PageInfo page_info = 2;
@@ -210,20 +224,79 @@ export type RetrieveShortLinksResponse = Message<"shortener.api.RetrieveShortLin
 };
 
 /**
- * Describes the message shortener.api.RetrieveShortLinksResponse.
- * Use `create(RetrieveShortLinksResponseSchema)` to create a new message.
+ * Describes the message shortener.api.ListShortLinksResponse.
+ * Use `create(ListShortLinksResponseSchema)` to create a new message.
  */
-export const RetrieveShortLinksResponseSchema: GenMessage<RetrieveShortLinksResponse> = /*@__PURE__*/
+export const ListShortLinksResponseSchema: GenMessage<ListShortLinksResponse> = /*@__PURE__*/
   messageDesc(file_shortener_api_shortener_api, 7);
+
+/**
+ * Partial update via proto3 EXPLICIT PRESENCE, not a google.protobuf.FieldMask.
+ *
+ * The problem both solve is the same: proto3 cannot tell "the client omitted
+ * this" from "the client sent the zero value", so a server copying every field
+ * of the request would blank out whatever the caller left unset. `optional`
+ * answers it per field -- hasLongUrl() is true only if the client actually sent
+ * long_url -- which is all this message needs.
+ *
+ * A FieldMask earns its keep on large resources with many clients, where you
+ * want one generic Update instead of dozens of narrow rpcs, and where the mask
+ * can name NESTED paths ("author.address.city") that `optional` cannot express.
+ * ShortLink has two mutable fields. Same posture as Cognixus, which has no
+ * FieldMask anywhere and uses `optional` plus purpose-specific Update rpcs.
+ *
+ * @generated from message shortener.api.UpdateShortLinkRequest
+ */
+export type UpdateShortLinkRequest = Message<"shortener.api.UpdateShortLinkRequest"> & {
+  /**
+   * @generated from field: string short_code = 1;
+   */
+  shortCode: string;
+
+  /**
+   * @generated from field: optional string long_url = 2;
+   */
+  longUrl?: string | undefined;
+
+  /**
+   * @generated from field: optional shortener.api.LinkStatus status = 3;
+   */
+  status?: LinkStatus | undefined;
+};
+
+/**
+ * Describes the message shortener.api.UpdateShortLinkRequest.
+ * Use `create(UpdateShortLinkRequestSchema)` to create a new message.
+ */
+export const UpdateShortLinkRequestSchema: GenMessage<UpdateShortLinkRequest> = /*@__PURE__*/
+  messageDesc(file_shortener_api_shortener_api, 8);
+
+/**
+ * @generated from message shortener.api.UpdateShortLinkResponse
+ */
+export type UpdateShortLinkResponse = Message<"shortener.api.UpdateShortLinkResponse"> & {
+  /**
+   * @generated from field: shortener.api.ShortLink short_link = 1;
+   */
+  shortLink?: ShortLink | undefined;
+};
+
+/**
+ * Describes the message shortener.api.UpdateShortLinkResponse.
+ * Use `create(UpdateShortLinkResponseSchema)` to create a new message.
+ */
+export const UpdateShortLinkResponseSchema: GenMessage<UpdateShortLinkResponse> = /*@__PURE__*/
+  messageDesc(file_shortener_api_shortener_api, 9);
 
 /**
  * ---------------------------------------------------------------------------
  * LinkStatus is THE shared type of this project.
  *
- * Both shortener-service and link-audit-service are generated from this one
- * enum. That is the entire point: in a previous project this enum was
- * hand-copied into a second service and the two definitions drifted apart.
- * Here, adding a value is a single edit to a single file.
+ * Every consumer is generated from this one enum -- shortener-service in Java,
+ * the webapp in TypeScript via protobuf-es. That is the entire point: in a
+ * previous project this enum was hand-copied into a second service and the two
+ * definitions drifted apart. Here, adding a value is a single edit to a single
+ * file, picked up by both toolchains on the next build.
  *
  * Rules being obeyed (see lessons/0001):
  *   - a zero value MUST exist, because proto3 cannot distinguish "unset"
@@ -283,20 +356,31 @@ export const ShortenerService: GenService<{
    * Read path. This is the RPC that gets scaled to N replicas in lesson 6,
    * and the one ghz hammers in lesson 7. No permission required -- public.
    *
-   * @generated from rpc shortener.api.ShortenerService.ResolveShortLink
+   * @generated from rpc shortener.api.ShortenerService.GetShortLink
    */
-  resolveShortLink: {
+  getShortLink: {
     methodKind: "unary";
-    input: typeof ResolveShortLinkRequestSchema;
-    output: typeof ResolveShortLinkResponseSchema;
+    input: typeof GetShortLinkRequestSchema;
+    output: typeof GetShortLinkResponseSchema;
   },
   /**
-   * @generated from rpc shortener.api.ShortenerService.RetrieveShortLinks
+   * @generated from rpc shortener.api.ShortenerService.ListShortLinks
    */
-  retrieveShortLinks: {
+  listShortLinks: {
     methodKind: "unary";
-    input: typeof RetrieveShortLinksRequestSchema;
-    output: typeof RetrieveShortLinksResponseSchema;
+    input: typeof ListShortLinksRequestSchema;
+    output: typeof ListShortLinksResponseSchema;
+  },
+  /**
+   * PATCH, not PUT: this is a partial update, and PUT means "replace the whole
+   * resource". AIP-134 mandates PATCH for the standard Update method.
+   *
+   * @generated from rpc shortener.api.ShortenerService.UpdateShortLink
+   */
+  updateShortLink: {
+    methodKind: "unary";
+    input: typeof UpdateShortLinkRequestSchema;
+    output: typeof UpdateShortLinkResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_shortener_api_shortener_api, 0);

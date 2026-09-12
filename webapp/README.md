@@ -37,6 +37,16 @@ npm run gen:proto   # buf + protoc-gen-es -> src/shared/api/gen/**
 Generated output is committed, so a contract change shows up as a reviewable diff. Re-run it after
 editing any `.proto` and let `npm run typecheck` tell you what broke.
 
+`gen:proto` only updates **this** app. A proto change has two more consumers, so the full loop from
+the repo root is:
+
+```bash
+./mvnw clean install -DskipTests   # Java services (clean matters on a rename -- see ../README.md)
+npm run gen:proto                  # this app
+docker compose up -d --build       # the edge: its transcoding descriptor is generated too, so a
+                                   # new HTTP route does not exist until the image is rebuilt
+```
+
 ## Where things live
 
 | Path | What |

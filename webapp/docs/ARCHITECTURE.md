@@ -118,7 +118,7 @@ behind a boundary and streams in.
 
 The list is deliberately **not** cached yet. `use cache` would run at build time, which would make
 `next build` require a running backend and a valid client secret. Making that trade consciously —
-and dealing with the consequence — is exercise E in PRACTICE.md.
+and dealing with the consequence — is exercise F in PRACTICE.md.
 
 When you add sessions: a session read cannot be prerendered, so it belongs behind `<Suspense>`,
 and per-user data uses `use cache: private` (browser-only) or passes a stable id into a plain

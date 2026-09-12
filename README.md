@@ -4,7 +4,7 @@ Two Spring Boot services sharing one protobuf schema, built to demonstrate two t
 
 1. **A schema no one can quietly break** — one `.proto`, two independently deployable
    services, machine-enforced compatibility.
-2. **Reads that scale independently of writes** — `ResolveShortLink` run at N replicas,
+2. **Reads that scale independently of writes** — `GetShortLink` run at N replicas,
    with real load numbers rather than a claim.
 
 ---
@@ -43,32 +43,77 @@ I'd add `buf breaking --against` as a PR gate on top of it."*
 
 ## 2. Build and run
 
-Requires **JDK 21+**. Maven is not needed — `./mvnw` (the Maven Wrapper) downloads and
-caches it on first run.
+Requires **JDK 21+** for the services and **Node 24+** for `webapp`. Maven is not needed —
+`./mvnw` (the Maven Wrapper) downloads and caches it on first run.
 
 ```bash
-./mvnw install              # builds all three modules
+./mvnw install -DskipTests        # builds every module
+docker compose up -d              # or bring the whole stack up
 ```
 
-Then, in two terminals — **audit first**, since the shortener opens a channel to it:
+Or run one service directly:
 
 ```bash
-./mvnw -pl linkaudit/service spring-boot:run     # port 9091
 ./mvnw -pl shortener/service spring-boot:run     # port 9090
 ```
 
-Both services register `grpc.reflection.v1.ServerReflection` automatically, so `grpcurl`
-can introspect them with no `-proto` flag (`brew install grpcurl`):
+### Regenerating code from the protos
+
+There is no separate codegen step for Java: the `protobuf-maven-plugin` is bound to Maven's
+`generate-sources` phase, so **any ordinary build regenerates**. TypeScript is a separate
+command, because `webapp` has its own toolchain (buf + protobuf-es).
+
+| Target | Command | Output |
+|---|---|---|
+| Java | `./mvnw clean install -DskipTests` | `<domain>/api/target/generated-sources/protobuf/` |
+| TypeScript | `cd webapp && npm run gen:proto` | `webapp/src/shared/api/gen/` |
+
+After changing a `.proto`, do all three:
 
 ```bash
-grpcurl -plaintext -d '{"long_url":"https://anthropic.com"}' \
-  localhost:9090 shortener.api.v1.ShortenerService/CreateShortLink
-
-grpcurl -plaintext -d '{"long_url":"https://malware.test/x"}' \
-  localhost:9090 shortener.api.v1.ShortenerService/CreateShortLink
-# -> status comes back LINK_STATUS_FLAGGED, decided by the OTHER service,
-#    using the SAME generated enum
+./mvnw clean install -DskipTests \
+  && (cd webapp && npm run gen:proto && npm run check) \
+  && docker compose up -d --build
 ```
+
+Three things worth knowing, each of which has bitten this repo:
+
+- **`clean` is required when you rename or delete** a message or rpc. Without it, the
+  previous run's generated `.java` files are still sitting in `target/generated-sources`,
+  javac compiles them too, and you get a wall of `cannot find symbol` errors that look like
+  a source problem but are stale output. Pure additions — a new field, a new rpc — are fine
+  without it. `npm run gen:proto` has no such issue: `buf.gen.yaml` sets `clean: true`, so
+  buf wipes its own output directory first.
+- **The Envoy descriptor is generated from the protos too** (`edge/descriptor`), so a new
+  `google.api.http` route does not exist at the edge until that image is rebuilt. A restart
+  is not enough — `docker compose up -d --build` is.
+- **Well-known `google/*` protos are vendored**, not taken from protoc's bundled copies. If
+  an import fails with `File not found`, the fix is to add the file under `google/` — it can
+  be extracted from the protobuf jar, which is how `google/protobuf/field_mask.proto` got
+  here.
+
+### Poking the gRPC surface directly
+
+Each service registers `grpc.reflection.v1.ServerReflection`, so `grpcurl` can introspect it
+with no `-proto` flag (`brew install grpcurl`):
+
+```bash
+grpcurl -plaintext localhost:9090 list
+grpcurl -plaintext -d '{"short_code":"abc123"}' \
+  localhost:9090 shortener.api.ShortenerService/GetShortLink
+```
+
+`GetShortLink` is public. `CreateShortLink`, `ListShortLinks` and `UpdateShortLink` are gated
+on permissions declared in the proto itself, so those need a token:
+
+```bash
+grpcurl -plaintext -H "authorization: Bearer $TOKEN" \
+  -d '{"long_url":"https://anthropic.com"}' \
+  localhost:9090 shortener.api.ShortenerService/CreateShortLink
+```
+
+A blocked host (`https://malware.test`) comes back as `FAILED_PRECONDITION`, not as a link
+with `LINK_STATUS_FLAGGED` — being refused is an error, not a state a stored link can hold.
 
 ---
 
@@ -78,9 +123,12 @@ grpcurl -plaintext -d '{"long_url":"https://malware.test/x"}' \
 shortener/
   api/shortener_api.proto         package shortener.api
   service/                        Spring Boot app, gRPC on 9090
-linkaudit/
-  api/link_audit_api.proto        package linkaudit.api
-  service/                        Spring Boot app, gRPC on 9091
+auth/
+  api/auth_api.proto              package auth.api
+  service/                        Spring Boot app, gRPC on 9092
+user/
+  api/user_api.proto              package user.api
+  service/                        Spring Boot app, gRPC on 9093
 ```
 
 Laid out by **domain**, the way the Cognixus monorepo is: each domain owns an `api/`
@@ -89,8 +137,8 @@ directory holding its schema and a `service/` directory holding the application.
 ### Protos are addressed from the repo root
 
 ```proto
-// linkaudit/api/v1/link_audit_api.proto
-import "shortener/api/shortener_api.proto";
+// shortener/api/shortener_api.proto
+import "auth/api/auth_api.proto";
 ```
 
 ```proto
@@ -118,22 +166,22 @@ Neither of the last two is optional, and both fail confusingly:
 
 The filesystem root is the single source of truth, as in Bazel.
 
-**Verified:** `linkaudit/api/target` contains only its own 6 generated files.
-`ShortenerServiceGrpc.java` is absent — the import resolved without regenerating.
+**Verified:** `shortener/api/target` contains only its own generated files.
+`AuthServiceGrpc.java` is absent — the import resolved without regenerating.
 
 ### Why the schema is not inside the service directory
 
 `shortener/api` and `shortener/service` are separate Maven modules even though they share a
-parent folder. If the schema lived inside the service module, link-audit would have to
-depend on the **entire shortener application** — Netty, Spring context, future datasource —
-to read one enum. Bazel splits these the same way: `cms/api/BUILD` and `cms/service/BUILD`
+parent folder. If the schema lived inside the service module, shortener would have to
+depend on the **entire auth application** — Netty, Spring context, its datasource — to read
+one custom option. Bazel splits these the same way: `cms/api/BUILD` and `cms/service/BUILD`
 are distinct targets under one directory.
 
 ### The two arrows point in opposite directions
 
 ```
-schema:    linkaudit/api      ──imports──▶  shortener/api
-runtime:   shortener/service  ──calls────▶  linkaudit/service
+schema:    shortener/api      ──imports──▶  auth/api
+runtime:   user/service       ──calls────▶  auth/service
 ```
 
 Not a mistake, and worth rehearsing: a **schema** dependency is about shared vocabulary,
@@ -153,22 +201,22 @@ When a genuinely breaking change is needed, the move is to publish a parallel
 `shortener.api.v2` package and migrate callers across, rather than editing in place. If buf
 is ever switched on (§5), relax `STANDARD` to `BASIC` or exclude that one rule.
 
-Look at the imports at the top of `LinkAuditGrpcService.java`:
+Look at the imports at the top of `ProtoPermissionAuthorizationManager.java`:
 
 ```java
-import com.example.linkaudit.api.v1.ReportLinkCreatedRequest;  // its own types
-import com.example.shortener.api.v1.LinkStatus;                // someone else's enum
+import com.example.shortener.api.ShortenerServiceGrpc;  // its own types
+import com.example.auth.api.AuthProto;                  // someone else's custom option
 ```
 
 ---
 
 ## 3b. Two kinds of failure, two different mechanisms
 
-`CreateShortLink` and `ResolveShortLink` fail in genuinely different ways, and the code
+`CreateShortLink` and `GetShortLink` fail in genuinely different ways, and the code
 treats them differently on purpose — mirroring a real pattern from Cognixus's
 `error/api/error_api.proto`.
 
-**`ResolveShortLink` uses a real gRPC status** (`NOT_FOUND`). "This resource doesn't exist"
+**`GetShortLink` uses a real gRPC status** (`NOT_FOUND`). "This resource doesn't exist"
 is a transport-level outcome — exactly what gRPC's status codes exist for. It ends the call:
 `onError(...)`, no response message.
 
@@ -189,7 +237,7 @@ is exactly the layer Postman rendered so unhelpfully — see Lesson 4). It belon
 response, as ordinary structured data: `onNext(...)` with the `error` branch set, then
 `onCompleted()`. The call **succeeded**; the caller checks `getResponseCase()`.
 
-**The distinction worth getting right**: a link flagged by link-audit (`status =
+**The distinction worth getting right**: a flagged link (`status =
 LINK_STATUS_FLAGGED`) is *not* routed through `Error`. Being flagged is a legitimate
 business **state** of a successfully created link — it still comes back on the `link`
 branch. `Error` is reserved for "this operation could not be carried out at all," not for
@@ -246,7 +294,8 @@ modules:
   - path: .
     excludes:
       - shortener/service
-      - linkaudit/service
+      - auth/service
+      - user/service
 lint:
   use: [STANDARD]
 breaking:
@@ -314,9 +363,9 @@ Full investigation and interpretation: [lessons/0007-proving-it-with-ghz.html](.
 Short version: scaling 1->3 replicas did NOT improve CreateShortLink throughput
 (1702 -> 1508 req/s, p99 roughly 2.4x worse) -- and this is the SECOND time this exact
 pattern showed up, first with an Envoy proxy in the path, now with none at all. Testing
-both rules the proxy out as the cause: every replica, link-audit-service, and the ghz
+both rules the proxy out as the cause: every replica and the ghz
 client itself share one laptop's finite CPU cores regardless of architecture -- more
-containers isn't more hardware. Separately, ResolveShortLink for one just-created code
+containers isn't more hardware. Separately, GetShortLink for one just-created code
 came back roughly 2-in-3 OK through the 3-replica pool (not the naive 1-in-3 a single
 independent store predicts, worth digging into further) -- proof reads aren't reliably
 consistent under scaling yet, since each replica holds independent in-memory state. That's
@@ -349,5 +398,6 @@ resolve -> https://anthropic.com
 missing -> NOT_FOUND
 ```
 
-The `LINK_STATUS_FLAGGED` on line two was decided by **link-audit-service** and carried
-back to **shortener-service** as the shared enum. Two processes, one definition.
+The `LINK_STATUS_FLAGGED` on line two is decided by shortener-service's own blocklist
+check. It was originally a separate link-audit-service returning the shared enum over
+gRPC; the check was inlined once the blocklist no longer justified a network hop.

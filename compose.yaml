@@ -4,8 +4,7 @@ services:
   # combined descriptor built from the shortener/auth/user protos -- see
   # edge/descriptor and edge/envoy.yaml. The gRPC ports below stay published so
   # grpcurl/Postman reflection still works against the services directly; the
-  # edge is additive, not a gate. linkaudit has no browser-facing rpc so it is
-  # not behind the edge.
+  # edge is additive, not a gate.
   edge:
     build:
       context: .
@@ -17,13 +16,6 @@ services:
       - shortener-service
       - auth-service
       - user-service
-
-  linkaudit-service:
-    build:
-      context: .
-      dockerfile: linkaudit/service/Dockerfile
-    ports:
-      - "9091:9091"
 
   postgres:
     image: postgres:16-alpine
@@ -98,8 +90,6 @@ services:
     ports:
       - "9090:9090"
     depends_on:
-      linkaudit-service:
-        condition: service_started
       auth-service:
         condition: service_started
       postgres:

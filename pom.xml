@@ -34,8 +34,6 @@
     -->
     <module>shortener/api</module>
     <module>shortener/service</module>
-    <module>linkaudit/api</module>
-    <module>linkaudit/service</module>
     <module>auth/api</module>
     <module>auth/service</module>
     <module>user/api</module>
@@ -69,11 +67,6 @@
       <dependency>
         <groupId>com.example</groupId>
         <artifactId>shortener-api</artifactId>
-        <version>${project.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>com.example</groupId>
-        <artifactId>link-audit-api</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>

@@ -22,10 +22,6 @@
     (google/protobuf/descriptor.proto, auth/api/auth_api.proto), and Envoy
     rejects a descriptor with duplicate file entries.
 
-    linkaudit is deliberately absent. Its only rpc, ReportLinkCreated, is
-    called by shortener-service over gRPC and never by a browser, so there is
-    nothing to transcode.
-
     Output: target/protobuf/api-bundle.pb, consumed by edge/Dockerfile.
   -->
 

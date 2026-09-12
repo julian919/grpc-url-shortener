@@ -74,50 +74,94 @@ Legend: 🟢 Foundations · 🔵 Core · 🟣 Hard · ⚫ Stretch
 - [ ] **C4 · Optimistic UI.** Add `useOptimistic` so the new link appears before the round trip and
       rolls back on failure.
 
-## Track D — Token lifecycle 🟣
+## Track D — Edit a link 🔵
 
-- [ ] **D1 · Refresh and retry.** In the create-link path: on `ACCESS_TOKEN_EXPIRED`, call
+`UpdateShortLink` exists on the backend and nothing in this app calls it yet. It is the first
+endpoint here that is **partial**: the client sends only what changed.
+
+- [ ] **D1 · Repository write path.** Add `updateLink({ shortCode, longUrl?, status? }, accessToken)`
+      to `features/links/server/link-repository.ts`. `PATCH /api/links/{shortCode}`, and parse the
+      reply with `fromJson(UpdateShortLinkResponseSchema, …)`.
+      _Context: the id goes in the **path**, the changes go in the **body** — destructure it out
+      (`const { shortCode, ...changes }`) rather than serializing the whole message. The generated
+      `UpdateShortLinkRequest` type has `shortCode: string` as required because that is the **gRPC
+      message**, where a caller has no URL to put it in; over HTTP the transcoder fills it from the
+      path instead. Send it in the body too and it is silently ignored — `PATCH /api/links/A` with
+      `{"shortCode":"B"}` updates **A** and returns 200._
+      _Done when:_ you can change a link's `longUrl` from a script and see it in the list.
+- [ ] **D2 · Send only what changed.** `long_url` and `status` are proto3 `optional`, so an omitted
+      field means "leave it alone" — not "set it to empty".
+      _Context: this is why the request has no `FieldMask`. Explicit presence answers the same
+      "absent vs zero" question per field, and Cognixus uses the same posture — `optional` plus
+      narrow rpcs, no masks anywhere._
+      _Done when:_ PATCHing only `longUrl` provably leaves `status` untouched — assert it in a test
+      against a mocked `callApi`, the way `link-repository.test.ts` already does for the list.
+- [ ] **D3 · The action and the form.** `features/links/actions/update-link.ts`, same order as C2:
+      **authorize → validate → call → revalidate**. A `features/links/components/edit-link-form.tsx`
+      pre-filled from the current row, submitting only the fields the user actually touched.
+      _Done when:_ editing a link updates the list without a full reload, and the action rejects an
+      unauthenticated caller on its own rather than trusting the page._
+- [ ] **D4 · Map the three refusals.** This endpoint fails in three distinct ways, and they are not
+      interchangeable: `NOT_FOUND` (no such code), `FAILED_PRECONDITION` (the new URL's host is on
+      the blocklist — the audit re-runs on every URL change), and `INVALID_ARGUMENT` (you tried to
+      set `LINK_STATUS_FLAGGED`, which is the audit's verdict, not a client's to write).
+      _Done when:_ each renders differently, and you branched on `ApiError.grpcCode`/`httpStatus`,
+      never on message text.
+- [ ] **D5 · Expire, don't delete.** Add a one-click "expire" that PATCHes
+      `{"status":"LINK_STATUS_EXPIRED"}`, and show expired links differently in `LinkRow`.
+      _Context: `StatusBadge` already styles anything non-ACTIVE as amber — decide whether expired
+      deserves its own treatment._
+- [ ] **D6 · Concurrent edits.** ⚫ `updated_at` now exists on every link. Use it: refuse a write
+      whose `updated_at` is older than the stored one, so two editors cannot silently clobber each
+      other. Needs a backend change too — a precondition field on the request, or `If-Match` and an
+      ETag at the edge.
+      _Context: this is the concrete payoff of putting the resource in the URL, since conditional
+      requests key on a resource URL._
+
+## Track E — Token lifecycle 🟣
+
+- [ ] **E1 · Refresh and retry.** In the create-link path: on `ACCESS_TOKEN_EXPIRED`, call
       `POST /api/token/refresh`, store the rotated pair, and retry the original call **once**.
       _Context: this lives in the action because only Server Actions can write cookies. Guard
       against retry loops — one attempt, then surface the failure._
       _Done when:_ with a deliberately short access-token TTL, creating a link after expiry
       succeeds without the user noticing.
-- [ ] **D2 · Dead refresh token.** On any `REFRESH_TOKEN_*` reason, clear both cookies and redirect
+- [ ] **E2 · Dead refresh token.** On any `REFRESH_TOKEN_*` reason, clear both cookies and redirect
       to `/login`.
       _Context: these come back as **400**, not 401 — that's what keeps a retry-on-401 client from
       looping on the refresh call itself. Refresh-token reuse is also detected server-side and
       revokes the whole family._
-- [ ] **D3 · `proxy.ts`.** Redirect unauthenticated visitors away from `/links/new` by reading the
+- [ ] **E3 · `proxy.ts`.** Redirect unauthenticated visitors away from `/links/new` by reading the
       cookie only.
       _Context: optimistic checks only — no network calls, no data reads. It runs on every request
       including prefetches, and it is **not** a security boundary: the action still re-checks._
-- [ ] **D4 · ⚫ Verify the token yourself.** Fetch auth-service's public key and verify the access
+- [ ] **E4 · ⚫ Verify the token yourself.** Fetch auth-service's public key and verify the access
       token's signature with `jose` before trusting its claims for UI decisions.
 
-## Track E — Caching 🟣
+## Track F — Caching 🟣
 
-- [ ] **E1 · Cache the list.** Add `'use cache'` + `cacheTag('links')` + `cacheLife` to the read.
+- [ ] **F1 · Cache the list.** Add `'use cache'` + `cacheTag('links')` + `cacheLife` to the read.
       _Done when:_ you hit the wall — `next build` now needs the backend and a real client secret,
       because cached functions run at build time. Decide how to handle it (keep the read dynamic,
       or make the build tolerate an unreachable API) and write down why.
-- [ ] **E2 · Invalidate it.** Have create-link refresh the list. Implement one `revalidateTag` and
+- [ ] **F2 · Invalidate it.** Have create-link refresh the list. Implement one `revalidateTag` and
       one `updateTag`, and write a comment on when each is right.
       _Context: `revalidateTag(tag, profile)` is stale-while-revalidate for the next visitor;
       `updateTag(tag)` gives the acting user read-your-writes immediately._
 
-## Track F — Quality and shipping 🟣⚫
+## Track G — Quality and shipping 🟣⚫
 
-- [ ] **F1 · E2E.** Playwright: list → login → create → see it in the list.
+- [ ] **G1 · E2E.** Playwright: list → login → create → see it in the list.
       _Context: Vitest cannot render async Server Components, which is exactly what the list and
       page are — so this flow can only be covered end to end._
-- [ ] **F2 · CI.** A GitHub Actions job on Node 24 running `npm run check`, plus a **codegen drift
+- [ ] **G2 · CI.** A GitHub Actions job on Node 24 running `npm run check`, plus a **codegen drift
       check**: run `gen:proto` and fail if `git diff --exit-code` shows changes.
-- [ ] **F3 · Containerise.** `output: 'standalone'`, a Dockerfile, and a `webapp` service in
+- [ ] **G3 · Containerise.** `output: 'standalone'`, a Dockerfile, and a `webapp` service in
       `compose.yaml`. Remember `API_BASE_URL` becomes `http://edge:8080` on the compose network.
-- [ ] **F4 · ⚫ Derive the URLs.** Read the `google.api.http` option off the generated method
+- [ ] **G4 · ⚫ Derive the URLs.** Read the `google.api.http` option off the generated method
       descriptors so repositories stop hard-coding paths — closing the one gap proto types have
       versus OpenAPI tooling.
-- [ ] **F5 · ⚫ React Compiler.** Turn on `reactCompiler`, measure the build-time cost, and decide
+- [ ] **G5 · ⚫ React Compiler.** Turn on `reactCompiler`, measure the build-time cost, and decide
       whether it earns its place.
 
 ---
@@ -132,3 +176,11 @@ Legend: 🟢 Foundations · 🔵 Core · 🟣 Hard · ⚫ Stretch
 - What exactly breaks if someone hand-writes a `Link` interface instead of generating it?
 - `revalidateTag` vs `updateTag` — one sentence each.
 - Why is the client token safe to cache in a module-level variable when a user token isn't?
+- A client sends `PATCH /api/links/A` with a body of `{"shortCode":"B"}`. Which link changes, and
+  why is the service unable to detect the mismatch?
+- `UpdateShortLinkRequest` uses `optional` fields rather than a `google.protobuf.FieldMask`. What
+  problem do both solve, and what would have to change about `ShortLink` to make the mask the
+  better choice?
+- A client may set a link to `EXPIRED` but not to `FLAGGED`. Why is that distinction worth
+  enforcing in the service rather than in the UI?
+- Changing a link's `long_url` re-runs the blocklist audit. What breaks if it doesn't?

@@ -8,10 +8,10 @@ import com.example.shortener.api.CreateShortLinkRequest;
 import com.example.shortener.api.CreateShortLinkResponse;
 import com.example.shortener.api.LinkStatus;
 import com.example.shortener.api.PageInfo;
-import com.example.shortener.api.ResolveShortLinkRequest;
-import com.example.shortener.api.ResolveShortLinkResponse;
-import com.example.shortener.api.RetrieveShortLinksRequest;
-import com.example.shortener.api.RetrieveShortLinksResponse;
+import com.example.shortener.api.GetShortLinkRequest;
+import com.example.shortener.api.GetShortLinkResponse;
+import com.example.shortener.api.ListShortLinksRequest;
+import com.example.shortener.api.ListShortLinksResponse;
 import com.example.shortener.api.ShortLink;
 import com.example.shortener.link.LinkService;
 import io.grpc.stub.StreamObserver;
@@ -31,9 +31,9 @@ class ShortenerGrpcServiceTest {
   @Mock
   private StreamObserver<CreateShortLinkResponse> createObserver;
   @Mock
-  private StreamObserver<ResolveShortLinkResponse> resolveObserver;
+  private StreamObserver<GetShortLinkResponse> resolveObserver;
   @Mock
-  private StreamObserver<RetrieveShortLinksResponse> retrieveObserver;
+  private StreamObserver<ListShortLinksResponse> retrieveObserver;
 
   private ShortenerGrpcService service;
 
@@ -64,13 +64,13 @@ class ShortenerGrpcServiceTest {
     verify(createObserver).onNext(captor.capture());
     verify(createObserver).onCompleted();
 
-    assertThat(captor.getValue().getLink()).isEqualTo(expectedLink);
+    assertThat(captor.getValue().getShortLink()).isEqualTo(expectedLink);
   }
 
   @Test
-  void resolveShortLink_delegatesToLinkService_andSendsResponse() {
-    ResolveShortLinkRequest request =
-        ResolveShortLinkRequest.newBuilder().setShortCode("abc1234").build();
+  void getShortLink_delegatesToLinkService_andSendsResponse() {
+    GetShortLinkRequest request =
+        GetShortLinkRequest.newBuilder().setShortCode("abc1234").build();
 
     ShortLink expectedLink =
         ShortLink.newBuilder()
@@ -80,22 +80,22 @@ class ShortenerGrpcServiceTest {
             .setStatus(LinkStatus.LINK_STATUS_ACTIVE)
             .build();
 
-    when(linkService.resolveShortLink("abc1234")).thenReturn(expectedLink);
+    when(linkService.getShortLink("abc1234")).thenReturn(expectedLink);
 
-    service.resolveShortLink(request, resolveObserver);
+    service.getShortLink(request, resolveObserver);
 
-    ArgumentCaptor<ResolveShortLinkResponse> captor =
-        ArgumentCaptor.forClass(ResolveShortLinkResponse.class);
+    ArgumentCaptor<GetShortLinkResponse> captor =
+        ArgumentCaptor.forClass(GetShortLinkResponse.class);
     verify(resolveObserver).onNext(captor.capture());
     verify(resolveObserver).onCompleted();
 
-    assertThat(captor.getValue().getLink()).isEqualTo(expectedLink);
+    assertThat(captor.getValue().getShortLink()).isEqualTo(expectedLink);
   }
 
   @Test
-  void retrieveShortLinks_delegatesToLinkService_andSendsResponse() {
-    RetrieveShortLinksRequest request =
-        RetrieveShortLinksRequest.newBuilder().setPage(1).setPageSize(10).build();
+  void listShortLinks_delegatesToLinkService_andSendsResponse() {
+    ListShortLinksRequest request =
+        ListShortLinksRequest.newBuilder().setPage(1).setPageSize(10).build();
 
     ShortLink link =
         ShortLink.newBuilder()
@@ -105,9 +105,9 @@ class ShortenerGrpcServiceTest {
             .setStatus(LinkStatus.LINK_STATUS_ACTIVE)
             .build();
 
-    RetrieveShortLinksResponse expectedResponse =
-        RetrieveShortLinksResponse.newBuilder()
-            .addAllLinks(List.of(link))
+    ListShortLinksResponse expectedResponse =
+        ListShortLinksResponse.newBuilder()
+            .addAllShortLinks(List.of(link))
             .setPageInfo(
                 PageInfo.newBuilder()
                     .setPage(1)
@@ -117,12 +117,12 @@ class ShortenerGrpcServiceTest {
                     .build())
             .build();
 
-    when(linkService.retrieveShortLinks(1, 10)).thenReturn(expectedResponse);
+    when(linkService.listShortLinks(1, 10)).thenReturn(expectedResponse);
 
-    service.retrieveShortLinks(request, retrieveObserver);
+    service.listShortLinks(request, retrieveObserver);
 
-    ArgumentCaptor<RetrieveShortLinksResponse> captor =
-        ArgumentCaptor.forClass(RetrieveShortLinksResponse.class);
+    ArgumentCaptor<ListShortLinksResponse> captor =
+        ArgumentCaptor.forClass(ListShortLinksResponse.class);
     verify(retrieveObserver).onNext(captor.capture());
     verify(retrieveObserver).onCompleted();
 

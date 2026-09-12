@@ -2,11 +2,14 @@ package com.example.shortener;
 
 import com.example.shortener.api.CreateShortLinkRequest;
 import com.example.shortener.api.CreateShortLinkResponse;
-import com.example.shortener.api.ResolveShortLinkRequest;
-import com.example.shortener.api.ResolveShortLinkResponse;
-import com.example.shortener.api.RetrieveShortLinksRequest;
-import com.example.shortener.api.RetrieveShortLinksResponse;
+import com.example.shortener.api.GetShortLinkRequest;
+import com.example.shortener.api.GetShortLinkResponse;
+import com.example.shortener.api.ListShortLinksRequest;
+import com.example.shortener.api.ListShortLinksResponse;
+import com.example.shortener.api.LinkStatus;
 import com.example.shortener.api.ShortLink;
+import com.example.shortener.api.UpdateShortLinkRequest;
+import com.example.shortener.api.UpdateShortLinkResponse;
 import com.example.shortener.api.ShortenerServiceGrpc;
 import com.example.shortener.link.LinkService;
 import io.grpc.stub.StreamObserver;
@@ -33,24 +36,38 @@ public class ShortenerGrpcService extends ShortenerServiceGrpc.ShortenerServiceI
   public void createShortLink(
       CreateShortLinkRequest request, StreamObserver<CreateShortLinkResponse> responseObserver) {
     ShortLink link = linkService.createShortLink(request.getLongUrl());
-    responseObserver.onNext(CreateShortLinkResponse.newBuilder().setLink(link).build());
+    responseObserver.onNext(CreateShortLinkResponse.newBuilder().setShortLink(link).build());
     responseObserver.onCompleted();
   }
 
   @Override
-  public void resolveShortLink(
-      ResolveShortLinkRequest request, StreamObserver<ResolveShortLinkResponse> responseObserver) {
-    ShortLink link = linkService.resolveShortLink(request.getShortCode());
-    responseObserver.onNext(ResolveShortLinkResponse.newBuilder().setLink(link).build());
+  public void getShortLink(
+      GetShortLinkRequest request, StreamObserver<GetShortLinkResponse> responseObserver) {
+    ShortLink link = linkService.getShortLink(request.getShortCode());
+    responseObserver.onNext(GetShortLinkResponse.newBuilder().setShortLink(link).build());
     responseObserver.onCompleted();
   }
 
   @Override
-  public void retrieveShortLinks(
-      RetrieveShortLinksRequest request,
-      StreamObserver<RetrieveShortLinksResponse> responseObserver) {
-    RetrieveShortLinksResponse response =
-        linkService.retrieveShortLinks(request.getPage(), request.getPageSize());
+  public void updateShortLink(
+      UpdateShortLinkRequest request, StreamObserver<UpdateShortLinkResponse> responseObserver) {
+    // Explicit presence -> null: hasLongUrl() is false when the client omitted the field, which
+    // is what keeps "absent" distinguishable from "the zero value" without a FieldMask.
+    ShortLink link =
+        linkService.updateShortLink(
+            request.getShortCode(),
+            request.hasLongUrl() ? request.getLongUrl() : null,
+            request.hasStatus() ? request.getStatus() : null);
+    responseObserver.onNext(UpdateShortLinkResponse.newBuilder().setShortLink(link).build());
+    responseObserver.onCompleted();
+  }
+
+  @Override
+  public void listShortLinks(
+      ListShortLinksRequest request,
+      StreamObserver<ListShortLinksResponse> responseObserver) {
+    ListShortLinksResponse response =
+        linkService.listShortLinks(request.getPage(), request.getPageSize());
     responseObserver.onNext(response);
     responseObserver.onCompleted();
   }

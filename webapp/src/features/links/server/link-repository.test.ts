@@ -11,7 +11,7 @@ const mockedCallApi = vi.mocked(callApi);
 // Copied from a real response of the running edge. Note what proto3 JSON does: createdAt is a
 // STRING (int64) and status is the enum's NAME. If this test passes, the parse matches the wire.
 const edgeResponse = {
-  links: [
+  shortLinks: [
     {
       shortCode: 'vrwRhj_bSO6MGnZigJyc-w',
       longUrl: 'https://example.com/three-services',
@@ -49,7 +49,7 @@ describe('listLinks', () => {
   });
 
   it('tolerates an absent page_info, which is optional on the wire', async () => {
-    mockedCallApi.mockResolvedValue({ links: [] });
+    mockedCallApi.mockResolvedValue({ shortLinks: [] });
 
     const { links, pageInfo } = await listLinks({ page: 1, pageSize: 20 });
 

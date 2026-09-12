@@ -4,11 +4,6 @@ spring:
   grpc:
     server:
       port: 9090
-    client:
-      channel:
-        # Key restructured in Spring gRPC 1.1: was spring.grpc.client.channels.<n>.address
-        link-audit:
-          target: "static://localhost:9091"
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/shortenerdb}
     username: ${SPRING_DATASOURCE_USERNAME:auth}

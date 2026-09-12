@@ -1,7 +1,6 @@
 package com.example.shortener;
 
 import com.example.shortener.exception.InvalidArgumentException;
-import com.example.shortener.link.exception.AuditUnavailableException;
 import com.example.shortener.link.exception.UrlFlaggedException;
 import io.grpc.Status;
 import org.springframework.grpc.server.advice.GrpcAdvice;
@@ -27,10 +26,5 @@ public class ShortenerExceptionAdvice {
   @GrpcExceptionHandler
   public Status handleUrlFlagged(UrlFlaggedException e) {
     return Status.FAILED_PRECONDITION.withDescription(e.getMessage());
-  }
-
-  @GrpcExceptionHandler
-  public Status handleAuditUnavailable(AuditUnavailableException e) {
-    return Status.UNAVAILABLE.withDescription(e.getMessage());
   }
 }

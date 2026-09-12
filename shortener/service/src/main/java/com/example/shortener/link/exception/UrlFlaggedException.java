@@ -1,8 +1,8 @@
 package com.example.shortener.link.exception;
 
 /**
- * link-audit ran and said no. Distinct from {@link AuditUnavailableException}: audit was
- * reachable and gave a verdict here, it just wasn't the verdict we wanted.
+ * The audit ran and said no -- the URL's host is on the blocklist, so the link is refused rather
+ * than stored. Mapped to FAILED_PRECONDITION by {@code ShortenerExceptionAdvice}.
  */
 public class UrlFlaggedException extends RuntimeException {
 

@@ -21,23 +21,14 @@
       <artifactId>shortener-api</artifactId>
     </dependency>
 
-    <!-- The schema of a domain it CALLS at runtime. -->
-    <dependency>
-      <groupId>com.example</groupId>
-      <artifactId>link-audit-api</artifactId>
-    </dependency>
-
     <!-- Needed for javac: ProtoPermissionAuthorizationManager reads AuthProto.requiresPermissions. -->
     <dependency>
       <groupId>com.example</groupId>
       <artifactId>auth-api</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>org.springframework.boot</groupId>
-      <artifactId>spring-boot-starter-grpc-client</artifactId>
-    </dependency>
-
+    <!-- Server only. The grpc-client starter went with linkaudit: shortener now calls no other
+         service over gRPC, and verifies JWTs locally against auth's bundled public key. -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-grpc-server</artifactId>

@@ -1,15 +1,8 @@
-# Activated in containers via SPRING_PROFILES_ACTIVE=docker (see docker-compose.yml).
+# Activated in containers via SPRING_PROFILES_ACTIVE=docker (see compose.yaml).
 #
-# The base application.yml points at localhost:9091, which is correct for two
-# processes on one machine but meaningless inside a container -- "localhost"
-# there means "this container", not "the link-audit container". This profile
-# overrides just that one property with the Docker Compose service name,
-# resolved via Compose's own embedded DNS.
+# This used to also repoint the link-audit gRPC channel from localhost:9091 to the Compose
+# service name; that channel is gone along with linkaudit-service, so the datasource host is
+# all that differs in a container now.
 spring:
-  grpc:
-    client:
-      channel:
-        link-audit:
-          target: "static://linkaudit-service:9091"
   datasource:
     url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/shortenerdb}
