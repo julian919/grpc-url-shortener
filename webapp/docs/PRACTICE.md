@@ -18,29 +18,31 @@ Legend: 🟢 Foundations · 🔵 Core · 🟣 Hard · ⚫ Stretch
 
 ## Track A — Orientation 🟢
 
-- [ ] **A1 · Run it end to end.** Backend up (`docker compose up -d` from `code/`), `.env.local`
+- [x] **A1 · Run it end to end.** Backend up (`docker compose up -d` from `code/`), `.env.local`
       copied, `npm run dev`. Confirm links render.
       _Done when:_ you can state, out loud, why the list renders **without logging in**.
-- [ ] **A2 · Trace one request.** Follow a page load from the browser through the Next server,
+- [x] **A2 · Trace one request.** Follow a page load from the browser through the Next server,
       the edge, and into a gRPC service. Name every hop and what it adds.
       _Context: the browser only ever talks to Next. Next attaches a client token and calls
       `/api/links` on Envoy, which transcodes JSON to gRPC and forwards to shortener-service,
       which checks the `LIST_SHORT_URL` permission from the JWT._
       _Done when:_ you can point at the file doing each step.
-- [ ] **A3 · Break the contract on purpose.** Rename a field in `shortener/api/shortener_api.proto`,
+- [x] **A3 · Break the contract on purpose.** Rename a field in `shortener/api/shortener_api.proto`,
       run `npm run gen:proto`, then `npm run typecheck`.
       _Done when:_ the frontend fails to compile — then revert and confirm it passes. That failure
       is the whole argument for generating types from the protos.
-- [ ] **A4 · Prove the boundary is enforced.** Add `import { something } from '@/features/auth/...'`
+- [x] **A4 · Prove the boundary is enforced.** Add `import { something } from '@/features/auth/...'`
       inside `features/links` and run `npm run lint`.
       _Done when:_ lint fails with the "No cross-feature imports" message. Revert.
 
 ## Track B — Login 🔵
 
-- [ ] **B1 · Session helpers.** Create `src/shared/auth/session.ts` (`import 'server-only'`) with
+- [x] **B1 · Session helpers.** Create `src/shared/auth/session.ts` (`import 'server-only'`) with
       `setSession`, `readSession` and `clearSession` over two `HttpOnly` cookies.
-      _Context: options are `httpOnly`, `secure` in production, `sameSite: 'lax'`, `path: '/'`, and
-      `maxAge` from the response's `expiresInSeconds`. Cookies can only be SET in a Server Action
+      _Context: options are `httpOnly`, `secure` in production, `sameSite: 'lax'`, `path: '/'`. The
+      ACCESS cookie's `maxAge` comes from the response's `expiresInSeconds`; the REFRESH cookie needs
+      its own 7 days, matching `refresh-token-ttl` — reuse the access lifetime and every user gets
+      logged out after 15 minutes. Cookies can only be SET in a Server Action
       or Route Handler — never during a Server Component render._
       _Done when:_ a unit test asserts the cookie options, and nothing outside `shared/auth` reads
       the raw cookie.
