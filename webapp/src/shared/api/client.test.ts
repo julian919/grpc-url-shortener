@@ -12,7 +12,11 @@ vi.stubGlobal('fetch', mockedFetch);
 
 // proto3 canonical JSON: int64 comes back as a STRING, which is exactly what the edge sends.
 const jsonResponse = (body: unknown, status = 200) =>
-  ({ ok: status >= 200 && status < 300, status, json: async () => body }) as Response;
+  ({
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+  }) as Response;
 
 const tokenBody = (accessToken: string, expiresInSeconds = '300') => ({
   accessToken,
@@ -53,7 +57,9 @@ describe('callApi', () => {
 
     await callApi('/api/links', { auth: { accessToken: 'user-tok' } });
 
-    expect(mockedFetch.mock.calls[0]![1].headers.Authorization).toBe('Bearer user-tok');
+    expect(mockedFetch.mock.calls[0]![1].headers.Authorization).toBe(
+      'Bearer user-tok'
+    );
   });
 
   it('sets a timeout, and surfaces it as a 504 ApiError', async () => {
@@ -66,9 +72,13 @@ describe('callApi', () => {
 
     // A real timeout rejects with a TimeoutError DOMException; it must not leak as-is.
     mockedFetch.mockReset();
-    mockedFetch.mockRejectedValue(new DOMException('The operation timed out.', 'TimeoutError'));
+    mockedFetch.mockRejectedValue(
+      new DOMException('The operation timed out.', 'TimeoutError')
+    );
 
-    const error = await callApi('/api/links', { auth: 'none' }).catch((e: unknown) => e);
+    const error = await callApi('/api/links', { auth: 'none' }).catch(
+      (e: unknown) => e
+    );
     expect(error).toBeInstanceOf(ApiError);
     expect((error as ApiError).httpStatus).toBe(504);
     expect((error as ApiError).reason).toBe('EDGE_TIMEOUT');
@@ -92,7 +102,9 @@ describe('callApi', () => {
       )
     );
 
-    await expect(callApi('/api/links', { auth: 'none' })).rejects.toBeInstanceOf(ApiError);
+    await expect(
+      callApi('/api/links', { auth: 'none' })
+    ).rejects.toBeInstanceOf(ApiError);
   });
 
   describe("the app's own client token", () => {
@@ -108,7 +120,9 @@ describe('callApi', () => {
       expect(tokenInit.method).toBe('POST');
       expect(tokenInit.headers.Authorization).toBe(BASIC);
 
-      expect(mockedFetch.mock.calls[1]![1].headers.Authorization).toBe('Bearer tok-1');
+      expect(mockedFetch.mock.calls[1]![1].headers.Authorization).toBe(
+        'Bearer tok-1'
+      );
     });
 
     it('reuses the cached token while it is still valid', async () => {
@@ -135,7 +149,9 @@ describe('callApi', () => {
       vi.advanceTimersByTime(271_000);
       await callApi('/api/links', { auth: 'client' });
 
-      expect(mockedFetch.mock.calls[3]![1].headers.Authorization).toBe('Bearer tok-2');
+      expect(mockedFetch.mock.calls[3]![1].headers.Authorization).toBe(
+        'Bearer tok-2'
+      );
     });
 
     it('lets concurrent callers share one in-flight token request', async () => {
@@ -159,8 +175,103 @@ describe('callApi', () => {
         .mockResolvedValueOnce(jsonResponse(tokenBody('tok-1')))
         .mockResolvedValueOnce(jsonResponse({}));
 
-      await expect(callApi('/api/links', { auth: 'client' })).rejects.toThrow('edge down');
-      await expect(callApi('/api/links', { auth: 'client' })).resolves.toBeDefined();
+      await expect(callApi('/api/links', { auth: 'client' })).rejects.toThrow(
+        'edge down'
+      );
+      await expect(
+        callApi('/api/links', { auth: 'client' })
+      ).resolves.toBeDefined();
     });
+  });
+});
+
+describe('callApi retry on an expired client token', () => {
+  const expired = () =>
+    jsonResponse(
+      {
+        code: 16,
+        message: 'Access token expired',
+        details: [
+          {
+            '@type': 'type.googleapis.com/google.rpc.ErrorInfo',
+            reason: 'ACCESS_TOKEN_EXPIRED',
+            domain: 'auth.example.com',
+          },
+        ],
+      },
+      401
+    );
+
+  beforeEach(() => {
+    vi.stubEnv('API_BASE_URL', 'http://edge.test');
+    vi.stubEnv('PUBLICWEB_CLIENT_ID', 'publicweb');
+    vi.stubEnv('PUBLICWEB_CLIENT_SECRET', 's3cret');
+    resetClientTokenCacheForTests();
+    mockedFetch.mockReset();
+  });
+
+  afterEach(() => vi.unstubAllEnvs());
+
+  const tokenCalls = () =>
+    mockedFetch.mock.calls.filter(([url]) =>
+      String(url).endsWith('/api/token/client')
+    );
+
+  it('fetches a fresh token and retries once when the backend says the cached one expired', async () => {
+    // The cache still trusts tok-1, but the backend's clock says it is expired.
+    mockedFetch
+      .mockResolvedValueOnce(jsonResponse(tokenBody('tok-1')))
+      .mockResolvedValueOnce(expired())
+      .mockResolvedValueOnce(jsonResponse(tokenBody('tok-2')))
+      .mockResolvedValueOnce(jsonResponse({ shortLinks: [] }));
+
+    await expect(callApi('/api/links', { auth: 'client' })).resolves.toEqual({
+      shortLinks: [],
+    });
+
+    expect(tokenCalls()).toHaveLength(2);
+    expect(mockedFetch.mock.calls.at(-1)![1].headers.Authorization).toBe(
+      'Bearer tok-2'
+    );
+  });
+
+  it('retries only once, so a second expiry is thrown rather than looping', async () => {
+    mockedFetch
+      .mockResolvedValueOnce(jsonResponse(tokenBody('tok-1')))
+      .mockResolvedValueOnce(expired())
+      .mockResolvedValueOnce(jsonResponse(tokenBody('tok-2')))
+      .mockResolvedValueOnce(expired());
+
+    await expect(
+      callApi('/api/links', { auth: 'client' })
+    ).rejects.toMatchObject({
+      reason: 'ACCESS_TOKEN_EXPIRED',
+    });
+    expect(mockedFetch).toHaveBeenCalledTimes(4);
+  });
+
+  it("never retries a user's expired token -- that needs the refresh flow", async () => {
+    mockedFetch.mockResolvedValueOnce(expired());
+
+    await expect(
+      callApi('/api/links', { auth: { accessToken: 'user-tok' } })
+    ).rejects.toBeInstanceOf(ApiError);
+    expect(mockedFetch).toHaveBeenCalledTimes(1);
+    expect(tokenCalls()).toHaveLength(0);
+  });
+
+  it('does not retry other failures, even with the client token', async () => {
+    mockedFetch
+      .mockResolvedValueOnce(jsonResponse(tokenBody('tok-1')))
+      .mockResolvedValueOnce(
+        jsonResponse({ code: 7, message: 'Permission denied' }, 403)
+      );
+
+    await expect(
+      callApi('/api/links', { auth: 'client' })
+    ).rejects.toMatchObject({
+      httpStatus: 403,
+    });
+    expect(tokenCalls()).toHaveLength(1);
   });
 });

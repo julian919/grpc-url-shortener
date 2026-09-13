@@ -35,14 +35,37 @@ export async function callApi(
 ): Promise<unknown> {
   const { method = 'GET', body, auth } = options;
 
-  const headers: Record<string, string> = {};
-  if (auth === 'client') {
-    headers.Authorization = `Bearer ${await getClientToken()}`;
-  } else if (typeof auth === 'object') {
-    headers.Authorization = `Bearer ${auth.accessToken}`;
+  try {
+    // `return await`, not `return`: without the await, a rejection would skip this catch.
+    return await request(path, {
+      method,
+      body,
+      headers: await authHeaders(auth),
+    });
+  } catch (error) {
+    // The cache predicts expiry with THIS server's clock, but the backend judges it with its own.
+    // A clock jump (e.g. the Docker VM resyncing after the laptop sleeps) can expire a token the
+    // cache still trusts. When the backend says so, its verdict wins: drop the cached token and
+    // retry ONCE with a fresh one. Only the app's own token can be replaced like this -- a user's
+    // expired token needs the refresh flow, not a silent swap.
+    if (
+      auth === 'client' &&
+      error instanceof ApiError &&
+      error.isExpiredAccessToken
+    ) {
+      cached = undefined;
+      return request(path, { method, body, headers: await authHeaders(auth) });
+    }
+    throw error;
   }
+}
 
-  return request(path, { method, body, headers });
+async function authHeaders(auth: Auth): Promise<Record<string, string>> {
+  if (auth === 'client')
+    return { Authorization: `Bearer ${await getClientToken()}` };
+  if (typeof auth === 'object')
+    return { Authorization: `Bearer ${auth.accessToken}` };
+  return {};
 }
 
 // --- transport -------------------------------------------------------------------------------
@@ -81,7 +104,11 @@ async function request(
     // Gateway Timeout means. Raised as an ApiError so a caller that catches ApiError catches
     // this too, rather than a bare DOMException leaking through.
     if (cause instanceof DOMException && cause.name === 'TimeoutError') {
-      throw new ApiError(504, `Timed out after ${REQUEST_TIMEOUT_MS}ms calling ${path}`, 'EDGE_TIMEOUT');
+      throw new ApiError(
+        504,
+        `Timed out after ${REQUEST_TIMEOUT_MS}ms calling ${path}`,
+        'EDGE_TIMEOUT'
+      );
     }
     throw cause;
   }
@@ -145,9 +172,13 @@ async function requestClientToken(): Promise<CachedToken> {
   // Parsed by the generated schema rather than trusted as-is: this is proto3 canonical JSON, so
   // expires_in_seconds arrives as a STRING and becomes a bigint. ignoreUnknownFields keeps an
   // added backend field from breaking a frontend that hasn't regenerated yet.
-  const token = fromJson(OAuth2TokenSchema, payload as JsonValue, { ignoreUnknownFields: true });
+  const token = fromJson(OAuth2TokenSchema, payload as JsonValue, {
+    ignoreUnknownFields: true,
+  });
 
-  logger.debug('Fetched client token', { expiresInSeconds: String(token.expiresInSeconds) });
+  logger.debug('Fetched client token', {
+    expiresInSeconds: String(token.expiresInSeconds),
+  });
 
   return {
     accessToken: token.accessToken,
