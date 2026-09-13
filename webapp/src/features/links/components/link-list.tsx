@@ -13,9 +13,9 @@ type SearchParams = Record<string, string | string[] | undefined>;
  */
 export async function LinkList({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const pagination = parsePagination(await searchParams);
-  const { links, pageInfo } = await listLinks(pagination);
+  const { shortLinks, pageInfo } = await listLinks(pagination);
 
-  if (links.length === 0) {
+  if (shortLinks.length === 0) {
     return (
       <p className="py-8 text-sm text-gray-600 dark:text-gray-400">
         No links yet. Creating one needs a signed-in user — that&apos;s exercise C in{' '}
@@ -27,16 +27,21 @@ export async function LinkList({ searchParams }: { searchParams: Promise<SearchP
   return (
     <>
       <ul className="divide-y divide-gray-200 dark:divide-gray-800">
-        {links.map((link) => (
+        {shortLinks.map((link) => (
           <LinkRow key={link.shortCode} link={link} />
         ))}
       </ul>
+      {/* page_info is a message field, so proto3 makes it optional no matter how reliably the
+          server sends it. Defaulted here rather than in the repository: the repository returns
+          the generated type untouched, and each consumer decides what "missing" means for it. */}
       <Pagination
-        page={pageInfo.page}
-        pageSize={pageInfo.pageSize}
-        totalPages={pageInfo.totalPages}
+        page={pageInfo?.page ?? pagination.page}
+        pageSize={pageInfo?.pageSize ?? pagination.pageSize}
+        totalPages={pageInfo?.totalPages ?? 1}
       />
-      <p className="mt-2 text-xs text-gray-500">{pageInfo.totalCount} link(s) total</p>
+      <p className="mt-2 text-xs text-gray-500">
+        {pageInfo?.totalCount ?? shortLinks.length} link(s) total
+      </p>
     </>
   );
 }

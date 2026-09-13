@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ApiError, isErrorReason, toApiError } from '@/shared/api/errors';
+import { ApiError, toApiError } from '@/shared/api/errors';
 
 // The bodies below are copied verbatim from real responses of the running edge, so this test
 // fails if the backend's error shape ever changes.
@@ -71,12 +71,16 @@ describe('toApiError', () => {
 
     expect(error.reason).toBeUndefined();
   });
-});
 
-describe('isErrorReason', () => {
-  it('narrows known reasons only', () => {
-    expect(isErrorReason('ACCESS_TOKEN_EXPIRED')).toBe(true);
-    expect(isErrorReason('SOMETHING_ELSE')).toBe(false);
-    expect(isErrorReason(undefined)).toBe(false);
+  it('degrades to a plain HTTP error when the body is not a google.rpc.Status', async () => {
+    // A gateway-generated 502 is an HTML page, not JSON -- edgeFetch passes `undefined` here.
+    const error = toApiError(502, undefined);
+
+    expect(error.httpStatus).toBe(502);
+    expect(error.message).toBe('Request failed with HTTP 502');
+    expect(error.reason).toBeUndefined();
+    expect(error.grpcCode).toBeUndefined();
+    expect(error.isExpiredAccessToken).toBe(false);
+    expect(error.isDeadRefreshToken).toBe(false);
   });
 });
