@@ -159,10 +159,18 @@ export const GetShortLinkResponseSchema: GenMessage<GetShortLinkResponse> = /*@_
   messageDesc(file_shortener_api_shortener_api, 4);
 
 /**
+ * Numbered pagination, bounded so it stays cheap at scale.
+ *
+ * Offset paging reads every skipped row, so deep pages get slower. Instead of removing page numbers,
+ * only the first 10,000 ROWS can be paged through (LinkService.MAX_RESULT_WINDOW) -- the same limit
+ * Elasticsearch defaults to. Capped on rows rather than pages, so pageSize cannot push deeper.
+ *
  * @generated from message shortener.api.ListShortLinksRequest
  */
 export type ListShortLinksRequest = Message<"shortener.api.ListShortLinksRequest"> & {
   /**
+   * 1-based; 0 means the first page
+   *
    * @generated from field: int32 page = 1;
    */
   page: number;
@@ -195,11 +203,18 @@ export type PageInfo = Message<"shortener.api.PageInfo"> & {
   pageSize: number;
 
   /**
+   * Counted only up to 10,001, never the whole table: a value above 10,000 means "more than
+   * 10,000". Past that point the exact figure cannot change which pages are reachable, and an
+   * unbounded count(*) would be a full scan on every request. Analytics that genuinely need the
+   * full count belong in a separate OLAP store, not in this paging response.
+   *
    * @generated from field: int32 total_count = 3;
    */
   totalCount: number;
 
   /**
+   * never more than 10,000 / page_size -- the browsable window
+   *
    * @generated from field: int32 total_pages = 4;
    */
   totalPages: number;

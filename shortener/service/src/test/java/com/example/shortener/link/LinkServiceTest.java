@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.example.shortener.api.LinkStatus;
+import com.example.shortener.api.PageInfo;
 import com.example.shortener.api.ListShortLinksResponse;
 import com.example.shortener.api.ShortLink;
 import com.example.shortener.link.exception.InvalidArgumentException;
@@ -268,11 +269,27 @@ class LinkServiceTest {
         .hasMessageContaining("short_code is required");
   }
 
-  // --- listShortLinks tests -----------------------------------------------------
+  // --- listShortLinks tests (numbered, capped) ------------------------------------
+
+  private List<ShortLinkEntity> rows(int count) {
+    List<ShortLinkEntity> out = new ArrayList<>();
+    for (int i = 0; i < count; i++) {
+      out.add(
+          ShortLinkEntity.fromProto(
+              ShortLink.newBuilder()
+                  .setShortCode("code" + i)
+                  .setLongUrl("https://example.com/" + i)
+                  .setCreatedAt(5000L - i)
+                  .setUpdatedAt(5000L - i)
+                  .setStatus(LinkStatus.LINK_STATUS_ACTIVE)
+                  .build()));
+    }
+    return out;
+  }
 
   @Test
-  void listShortLinks_emptyStore_returnsEmptyListAndZeroPageInfo() {
-    when(repository.count()).thenReturn(0L);
+  void listShortLinks_defaultsToFirstPageAndDefaultSize() {
+    when(repository.countUpTo(10_001)).thenReturn(0L);
     when(repository.listPaged(0, 10)).thenReturn(List.of());
 
     ListShortLinksResponse response = linkService.listShortLinks(0, 0);
@@ -280,61 +297,86 @@ class LinkServiceTest {
     assertThat(response.getShortLinksList()).isEmpty();
     assertThat(response.getPageInfo().getPage()).isEqualTo(1);
     assertThat(response.getPageInfo().getPageSize()).isEqualTo(10);
-    assertThat(response.getPageInfo().getTotalCount()).isEqualTo(0);
     assertThat(response.getPageInfo().getTotalPages()).isEqualTo(0);
   }
 
   @Test
-  void listShortLinks_pagination_returnsCorrectPagesAndMetadata() {
-    List<ShortLink> allLinks = new ArrayList<>();
-    for (int i = 5; i >= 1; i--) {
-      allLinks.add(
-          ShortLink.newBuilder()
-              .setShortCode("code" + i)
-              .setLongUrl("https://example.com/" + i)
-              .setCreatedAt(1000L * i)
-              .setStatus(LinkStatus.LINK_STATUS_ACTIVE)
-              .build());
-    }
-    List<ShortLinkEntity> allEntities =
-        allLinks.stream().map(ShortLinkEntity::fromProto).toList();
+  void listShortLinks_computesOffsetFromPageAndSize() {
+    when(repository.countUpTo(10_001)).thenReturn(10L);
+    when(repository.listPaged(4, 2)).thenReturn(rows(2));
 
-    when(repository.count()).thenReturn(5L);
-    when(repository.listPaged(0, 2)).thenReturn(allEntities.subList(0, 2));
-    when(repository.listPaged(2, 2)).thenReturn(allEntities.subList(2, 4));
-    when(repository.listPaged(4, 2)).thenReturn(allEntities.subList(4, 5));
-    when(repository.listPaged(6, 2)).thenReturn(List.of());
+    ListShortLinksResponse response = linkService.listShortLinks(3, 2);
 
-    // Page 1
-    ListShortLinksResponse page1 = linkService.listShortLinks(1, 2);
-    assertThat(page1.getShortLinksList())
-        .extracting(ShortLink::getShortCode)
-        .containsExactly("code5", "code4");
-    assertThat(page1.getPageInfo().getPage()).isEqualTo(1);
-    assertThat(page1.getPageInfo().getPageSize()).isEqualTo(2);
-    assertThat(page1.getPageInfo().getTotalCount()).isEqualTo(5);
-    assertThat(page1.getPageInfo().getTotalPages()).isEqualTo(3);
+    verify(repository).listPaged(4, 2);
+    assertThat(response.getShortLinksList()).hasSize(2);
+    assertThat(response.getPageInfo().getTotalPages()).isEqualTo(5);
+  }
 
-    // Page 2
-    ListShortLinksResponse page2 = linkService.listShortLinks(2, 2);
-    assertThat(page2.getShortLinksList())
-        .extracting(ShortLink::getShortCode)
-        .containsExactly("code3", "code2");
-    assertThat(page2.getPageInfo().getPage()).isEqualTo(2);
+  @Test
+  void listShortLinks_smallTable_reportsTheExactCount() {
+    when(repository.countUpTo(10_001)).thenReturn(16L);
+    when(repository.listPaged(0, 10)).thenReturn(rows(10));
 
-    // Page 3
-    ListShortLinksResponse page3 = linkService.listShortLinks(3, 2);
-    assertThat(page3.getShortLinksList())
-        .extracting(ShortLink::getShortCode)
-        .containsExactly("code1");
-    assertThat(page3.getPageInfo().getPage()).isEqualTo(3);
+    assertThat(linkService.listShortLinks(1, 10).getPageInfo().getTotalCount()).isEqualTo(16);
+  }
 
-    // Page 4 (out of bounds)
-    ListShortLinksResponse page4 = linkService.listShortLinks(4, 2);
-    assertThat(page4.getShortLinksList()).isEmpty();
-    assertThat(page4.getPageInfo().getPage()).isEqualTo(4);
-    assertThat(page4.getPageInfo().getTotalCount()).isEqualTo(5);
-    assertThat(page4.getPageInfo().getTotalPages()).isEqualTo(3);
+  @Test
+  void listShortLinks_largeTable_countStopsOnePastTheWindowAndNeverScansTheTable() {
+    // A 5M-row table: the bounded count comes back at its limit of 10,001, meaning "more than
+    // 10,000". The unbounded count() -- a full scan -- must never be called.
+    when(repository.countUpTo(10_001)).thenReturn(10_001L);
+    when(repository.listPaged(0, 10)).thenReturn(rows(10));
+
+    assertThat(linkService.listShortLinks(1, 10).getPageInfo().getTotalCount()).isEqualTo(10_001);
+    verify(repository, org.mockito.Mockito.never()).count();
+  }
+
+  @Test
+  void listShortLinks_totalPagesStopsAtTheResultWindow() {
+    when(repository.countUpTo(10_001)).thenReturn(10_001L);
+    when(repository.listPaged(0, 10)).thenReturn(rows(10));
+
+    // 5M rows would be 500,000 pages; the UI must only offer what can actually be reached.
+    assertThat(linkService.listShortLinks(1, 10).getPageInfo().getTotalPages()).isEqualTo(1_000);
+  }
+
+  @Test
+  void listShortLinks_windowIsInRowsSoALargerPageSizeGetsFewerPages() {
+    when(repository.countUpTo(10_001)).thenReturn(10_001L);
+    when(repository.listPaged(0, 100)).thenReturn(rows(10));
+
+    // Same 10,000-row window: 100 per page is 100 pages, not 1,000.
+    assertThat(linkService.listShortLinks(1, 100).getPageInfo().getTotalPages()).isEqualTo(100);
+  }
+
+  @Test
+  void listShortLinks_lastPageInsideTheWindowIsAllowed() {
+    when(repository.countUpTo(10_001)).thenReturn(10_001L);
+    when(repository.listPaged(9_900, 100)).thenReturn(rows(10));
+
+    // Page 100 at size 100 ends exactly on row 10,000.
+    assertThat(linkService.listShortLinks(100, 100).getShortLinksList()).hasSize(10);
+  }
+
+  @Test
+  void listShortLinks_pagePastTheWindow_throwsInvalidArgumentWithoutQuerying() {
+    assertThatThrownBy(() -> linkService.listShortLinks(101, 100))
+        .isInstanceOf(InvalidArgumentException.class)
+        .hasMessageContaining("first " + LinkService.MAX_RESULT_WINDOW);
+    assertThatThrownBy(() -> linkService.listShortLinks(1_001, 10))
+        .isInstanceOf(InvalidArgumentException.class);
+
+    verifyNoInteractions(repository);
+  }
+
+  @Test
+  void listShortLinks_hugePageNumber_doesNotOverflowPastTheCheck() {
+    // Integer.MAX_VALUE * 100 overflows an int to a negative number, which would slip under a naive
+    // `page * pageSize > window` check.
+    assertThatThrownBy(() -> linkService.listShortLinks(Integer.MAX_VALUE, 100))
+        .isInstanceOf(InvalidArgumentException.class);
+
+    verifyNoInteractions(repository);
   }
 
   @Test
@@ -353,7 +395,9 @@ class LinkServiceTest {
 
   @Test
   void listShortLinks_pageSizeCappedAtMax() {
-    ListShortLinksResponse response = linkService.listShortLinks(1, 200);
-    assertThat(response.getPageInfo().getPageSize()).isEqualTo(100);
+    when(repository.countUpTo(10_001)).thenReturn(0L);
+    when(repository.listPaged(0, 100)).thenReturn(List.of());
+
+    assertThat(linkService.listShortLinks(1, 200).getPageInfo().getPageSize()).isEqualTo(100);
   }
 }

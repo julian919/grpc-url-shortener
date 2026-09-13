@@ -1,7 +1,13 @@
+import type { Route } from 'next';
+import { redirect } from 'next/navigation';
+
 import { parsePagination } from '@/features/links/schema/pagination';
 import { listLinks } from '@/features/links/server/link-repository';
 import { Pagination } from '@/features/links/components/pagination';
-import { LinkStatus, type ShortLink } from '@/shared/api/gen/shortener/api/shortener_api_pb';
+import {
+  LinkStatus,
+  type ShortLink,
+} from '@/shared/api/gen/shortener/api/shortener_api_pb';
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -11,15 +17,26 @@ type SearchParams = Record<string, string | string[] | undefined>;
  * a <Suspense> boundary -- with Cache Components that placement is what lets the rest of the page
  * prerender into the static shell.
  */
-export async function LinkList({ searchParams }: { searchParams: Promise<SearchParams> }) {
+export async function LinkList({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
   const pagination = parsePagination(await searchParams);
   const { shortLinks, pageInfo } = await listLinks(pagination);
+
+  // A page past the end of the data (a hand-edited URL, or links deleted since) would otherwise
+  // render an empty list that looks like "no links exist". Go to the last page that has links.
+  const lastPage = pageInfo?.totalPages ?? 0;
+  if (lastPage > 0 && pagination.page > lastPage) {
+    redirect(`/?page=${lastPage}&pageSize=${pagination.pageSize}` as Route);
+  }
 
   if (shortLinks.length === 0) {
     return (
       <p className="py-8 text-sm text-gray-600 dark:text-gray-400">
-        No links yet. Creating one needs a signed-in user — that&apos;s exercise C in{' '}
-        <code className="font-mono">docs/PRACTICE.md</code>.
+        No links yet. Creating one needs a signed-in user — that&apos;s exercise
+        C in <code className="font-mono">docs/PRACTICE.md</code>.
       </p>
     );
   }
@@ -31,17 +48,14 @@ export async function LinkList({ searchParams }: { searchParams: Promise<SearchP
           <LinkRow key={link.shortCode} link={link} />
         ))}
       </ul>
-      {/* page_info is a message field, so proto3 makes it optional no matter how reliably the
-          server sends it. Defaulted here rather than in the repository: the repository returns
-          the generated type untouched, and each consumer decides what "missing" means for it. */}
+      {/* page_info is a message field, so proto3 makes it optional however reliably the server
+          sends it. Defaulted here, at the point of use, rather than in the repository. */}
       <Pagination
         page={pageInfo?.page ?? pagination.page}
         pageSize={pageInfo?.pageSize ?? pagination.pageSize}
         totalPages={pageInfo?.totalPages ?? 1}
+        totalCount={pageInfo?.totalCount ?? shortLinks.length}
       />
-      <p className="mt-2 text-xs text-gray-500">
-        {pageInfo?.totalCount ?? shortLinks.length} link(s) total
-      </p>
     </>
   );
 }
@@ -53,11 +67,17 @@ function LinkRow({ link }: { link: ShortLink }) {
         <span className="font-mono text-sm font-medium">{link.shortCode}</span>
         <StatusBadge status={link.status} />
       </div>
-      <p className="mt-1 truncate text-sm text-gray-600 dark:text-gray-400">{link.longUrl}</p>
+      <p className="mt-1 truncate text-sm text-gray-600 dark:text-gray-400">
+        {link.longUrl}
+      </p>
       <p className="mt-1 text-xs text-gray-500">
         {/* createdAt is int64 -> bigint (epoch millis). ISO rather than a locale format, so the
             output doesn't depend on where it rendered. */}
-        created {new Date(Number(link.createdAt)).toISOString().replace('T', ' ').slice(0, 16)}
+        created{' '}
+        {new Date(Number(link.createdAt))
+          .toISOString()
+          .replace('T', ' ')
+          .slice(0, 16)}
       </p>
     </li>
   );

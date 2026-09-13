@@ -25,6 +25,12 @@ public class LinkService {
   private static final Logger log = LoggerFactory.getLogger(LinkService.class);
   private static final int DEFAULT_PAGE_SIZE = 10;
   private static final int MAX_PAGE_SIZE = 100;
+  /**
+   * The deepest ROW a caller may page to. Capped on rows, not pages, because the cost of offset
+   * paging is in the offset: a page cap would let pageSize=100 reach ten times deeper than
+   * pageSize=10. Same default Elasticsearch uses for max_result_window.
+   */
+  static final int MAX_RESULT_WINDOW = 10_000;
 
   /**
    * Hosts refused at creation time. This was linkaudit-service, a separate gRPC service called
@@ -121,29 +127,40 @@ public class LinkService {
       throw new InvalidArgumentException(
           "page_size must be non-negative (got: " + requestedPageSize + ")");
     }
-
     int page = requestedPage == 0 ? 1 : requestedPage;
     int pageSize =
         requestedPageSize == 0 ? DEFAULT_PAGE_SIZE : Math.min(requestedPageSize, MAX_PAGE_SIZE);
 
-    int offset = (page - 1) * pageSize;
-    int totalCount = (int) repository.count();
-    int totalPages = totalCount == 0 ? 0 : (int) Math.ceil((double) totalCount / pageSize);
+    // The result window is what keeps offset paging honest at scale: OFFSET cost grows with depth,
+    // so capping the last reachable row bounds the worst query this endpoint will ever run. Long
+    // arithmetic, because page * pageSize can overflow an int for a hostile page number.
+    if ((long) page * pageSize > MAX_RESULT_WINDOW) {
+      throw new InvalidArgumentException(
+          "only the first " + MAX_RESULT_WINDOW + " links can be paged through (page " + page
+              + " at page_size " + pageSize + " is past that)");
+    }
+
+    // Count one past the window: enough to know whether there are MORE rows than can be browsed,
+    // without ever reading the rest of the table.
+    long totalCount = repository.countUpTo(MAX_RESULT_WINDOW + 1);
+    int totalPages =
+        totalCount == 0
+            ? 0
+            : Math.min((int) Math.ceil((double) totalCount / pageSize), MAX_RESULT_WINDOW / pageSize);
 
     List<ShortLink> links =
-        repository.listPaged(offset, pageSize).stream().map(ShortLinkEntity::toProto).toList();
-
-    PageInfo pageInfo =
-        PageInfo.newBuilder()
-            .setPage(page)
-            .setPageSize(pageSize)
-            .setTotalCount(totalCount)
-            .setTotalPages(totalPages)
-            .build();
+        repository.listPaged((page - 1) * pageSize, pageSize).stream()
+            .map(ShortLinkEntity::toProto)
+            .toList();
 
     return ListShortLinksResponse.newBuilder()
         .addAllShortLinks(links)
-        .setPageInfo(pageInfo)
+        .setPageInfo(
+            PageInfo.newBuilder()
+                .setPage(page)
+                .setPageSize(pageSize)
+                .setTotalCount((int) totalCount)
+                .setTotalPages(totalPages))
         .build();
   }
 

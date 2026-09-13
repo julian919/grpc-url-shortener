@@ -129,12 +129,7 @@ class ShortenerGrpcServiceTest {
         ListShortLinksResponse.newBuilder()
             .addAllShortLinks(List.of(link))
             .setPageInfo(
-                PageInfo.newBuilder()
-                    .setPage(1)
-                    .setPageSize(10)
-                    .setTotalCount(1)
-                    .setTotalPages(1)
-                    .build())
+                PageInfo.newBuilder().setPage(1).setPageSize(10).setTotalCount(1).setTotalPages(1).build())
             .build();
 
     when(linkService.listShortLinks(1, 10)).thenReturn(expectedResponse);
